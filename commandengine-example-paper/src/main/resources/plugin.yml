@@ -1,0 +1,6 @@
+name: CommandEngineExample
+version: 0.1.0
+main: com.hanielfialho.example.paper.ExamplePaperPlugin
+api-version: "1.21"
+author: hanielfialho
+description: Minimal Paper plugin using CommandEngine.

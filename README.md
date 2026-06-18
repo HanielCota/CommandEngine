@@ -1,0 +1,438 @@
+# CommandEngine
+
+CommandEngine is a compile-time command framework for Java 25 applications and Minecraft server platforms. It uses an annotation processor to generate Brigadier adapters at build time, avoiding reflection on the command execution path while still keeping command classes small and expressive.
+
+The current platform implementation targets Paper/Purpur. The core API and runtime are platform-agnostic, so additional platform adapters can be added without changing command code.
+
+> Status: `0.1.0-SNAPSHOT` / alpha. The project builds, is tested, and includes a Paper example plugin, but public API compatibility is not guaranteed yet.
+
+## Highlights
+
+- Java 25 baseline.
+- Gradle 9.5.0 wrapper.
+- JPMS modules for API, runtime, processor, Paper platform, tests and example plugin.
+- Compile-time adapter generation through an annotation processor.
+- Brigadier-native command trees.
+- Root aliases and nested subcommands.
+- Permission checks at root and subcommand level.
+- `@Sender`, `@Arg`, `@Flag`, `@Greedy`, `@Range`, `@Min`, `@Max`, `@Suggestions` and `@SuggestionProvider`.
+- `String args[]` and `String[] args` support for command-style argument arrays.
+- Virtual-thread async execution for `void` handlers by default.
+- `@Execute(async = false)` for sync handlers.
+- Caffeine-backed cache infrastructure.
+- Caffeine-backed command rate limiting.
+- Configurable user-facing messages.
+- Runtime telemetry SPI and `LoggingCommandTelemetry`.
+- Paper scheduler bridge for thread-confined callbacks.
+- Paper config loading from `plugin.getConfig()`.
+- Spotless + Palantir Java Format wired into the build.
+- GitHub Actions CI with JDK 25.
+- JaCoCo test reports.
+
+## Repository Layout
+
+```text
+CommandEngine/
+├── commandengine-api/              # Public annotations, SPIs and contracts
+├── commandengine-runtime/          # Runtime facade, executors, registry, cache and rate limit
+├── commandengine-processor/        # Java annotation processor and generated adapter renderers
+├── commandengine-platform-paper/   # Paper/Purpur integration
+├── commandengine-example-paper/    # Minimal Paper plugin using generated commands
+├── commandengine-test/             # Test harness, local Brigadier adapter and integration commands
+├── docs/                           # Architecture, decisions, quickstart and production checklist
+├── gradle/                         # Gradle wrapper and version catalog
+└── .github/workflows/ci.yml        # CI pipeline
+```
+
+## Requirements
+
+- JDK 25.
+- Gradle wrapper included in the repository.
+- Paper API `1.21.4-R0.1-SNAPSHOT` for the Paper platform module.
+
+Check your local Java version:
+
+```powershell
+java -version
+```
+
+Build everything:
+
+```powershell
+.\gradlew.bat spotlessApply build --stacktrace
+```
+
+On Linux/macOS:
+
+```bash
+./gradlew spotlessApply build --stacktrace
+```
+
+## Modules
+
+### `commandengine-api`
+
+The stable-facing public API. It contains annotations, command metadata, result types, `CommandSource`, scheduler, telemetry and rate-limit SPIs.
+
+Important packages:
+
+- `com.hanielfialho.api.annotation`
+- `com.hanielfialho.api.command`
+- `com.hanielfialho.api.source`
+- `com.hanielfialho.api.argument`
+- `com.hanielfialho.api.message`
+- `com.hanielfialho.api.rate`
+- `com.hanielfialho.api.scheduler`
+- `com.hanielfialho.api.telemetry`
+
+### `commandengine-processor`
+
+The annotation processor. It reads command annotations during compilation and generates direct-call adapters and adapter factories.
+
+Generated adapters are responsible for:
+
+- Building Brigadier nodes.
+- Applying permissions.
+- Extracting sender, arguments and flags.
+- Running rate limit checks.
+- Dispatching sync or async handlers.
+- Sending configured messages for framework-level failures.
+
+### `commandengine-runtime`
+
+The runtime facade used by applications and platforms. It owns registration, generated factory discovery through `ServiceLoader`, virtual-thread execution, telemetry wrapping, registry management and built-in configuration.
+
+Main entry points:
+
+- `CommandEngine`
+- `CommandEngineConfig`
+- `LoggingCommandTelemetry`
+
+### `commandengine-platform-paper`
+
+Paper/Purpur integration. It adapts Bukkit/Paper command senders, registers Brigadier-backed commands, provides native argument resolvers and loads external configuration.
+
+Main entry points:
+
+- `PaperPlatform`
+- `PaperCommandEngineConfigLoader`
+- `PaperCommandSource`
+- `PlayerArgumentResolver`
+- `WorldArgumentResolver`
+- `LocationArgumentResolver`
+- `MaterialArgumentResolver`
+
+### `commandengine-example-paper`
+
+A minimal Paper plugin that proves the processor, runtime and Paper bridge can be used together in a real plugin layout.
+
+Generated JAR:
+
+```text
+commandengine-example-paper/build/libs/commandengine-example-paper-0.1.0-SNAPSHOT.jar
+```
+
+Example commands:
+
+- `/cexample ping`
+- `/cexample echo <message>`
+
+## Quickstart
+
+### Gradle Dependencies
+
+For a generic Brigadier-backed application:
+
+```kotlin
+dependencies {
+  implementation(project(":commandengine-api"))
+  implementation(project(":commandengine-runtime"))
+  annotationProcessor(project(":commandengine-processor"))
+
+  testImplementation(project(":commandengine-test"))
+  testAnnotationProcessor(project(":commandengine-processor"))
+}
+```
+
+For Paper:
+
+```kotlin
+dependencies {
+  implementation(project(":commandengine-api"))
+  implementation(project(":commandengine-runtime"))
+  implementation(project(":commandengine-platform-paper"))
+  annotationProcessor(project(":commandengine-processor"))
+}
+```
+
+### Define a Command
+
+```java
+package com.hanielfialho.example;
+
+import com.hanielfialho.api.annotation.Arg;
+import com.hanielfialho.api.annotation.Command;
+import com.hanielfialho.api.annotation.Greedy;
+import com.hanielfialho.api.annotation.Range;
+import com.hanielfialho.api.annotation.Sender;
+import com.hanielfialho.api.annotation.Subcommand;
+import com.hanielfialho.api.annotation.SuggestionProvider;
+import com.hanielfialho.api.annotation.Suggestions;
+import com.hanielfialho.api.source.CommandSource;
+import java.util.List;
+
+@Command(
+        name = "warp",
+        aliases = {"w"},
+        permission = "warp.use",
+        description = "Warp management command")
+public final class WarpCommand {
+
+    @Subcommand("teleport")
+    public void teleport(@Sender CommandSource source, @Arg("name") @Suggestions("warpNames") String warpName) {
+        source.sendMessage("Teleporting to " + warpName);
+    }
+
+    @Subcommand(value = "create", permission = "warp.admin")
+    public void create(
+            @Sender CommandSource source,
+            @Arg("name") String name,
+            @Arg("cost") @Range(min = 0, max = 10_000) int cost) {
+        source.sendMessage("Created warp " + name + " with cost " + cost);
+    }
+
+    @Subcommand(value = "broadcast", permission = "warp.admin")
+    public void broadcast(@Arg("message") @Greedy String message) {
+        // Send through your plugin service.
+    }
+
+    @SuggestionProvider("warpNames")
+    public List<String> warpNames() {
+        return List.of("spawn", "shop", "arena");
+    }
+}
+```
+
+### Register Commands in Paper
+
+```java
+package com.hanielfialho.example;
+
+import com.hanielfialho.platform.paper.PaperPlatform;
+import com.hanielfialho.runtime.CommandEngine;
+import org.bukkit.plugin.java.JavaPlugin;
+
+public final class ExamplePlugin extends JavaPlugin {
+
+    private CommandEngine engine;
+
+    @Override
+    public void onEnable() {
+        saveDefaultConfig();
+        engine = CommandEngine.create(PaperPlatform.create(this));
+        engine.register(new WarpCommand());
+    }
+
+    @Override
+    public void onDisable() {
+        if (engine == null) {
+            return;
+        }
+
+        engine.close();
+        engine = null;
+    }
+}
+```
+
+## Paper Configuration
+
+`PaperPlatform.create(plugin)` loads `plugin.getConfig()` automatically. Missing values use safe defaults from `CommandEngineConfig`.
+
+```yaml
+commandengine:
+  async-timeout-millis: 30000
+  messages:
+    internal-error: "An internal error occurred while executing this command."
+    invalid-sender: "This command cannot be executed by this sender."
+    invalid-syntax: "Invalid command syntax."
+    no-permission: "You do not have permission to execute this command."
+    rate-limited: "You are executing this command too quickly."
+  rate-limit:
+    window-millis: 2000
+    max-executions: 5
+    maximum-size: 10000
+```
+
+Manual loading is also supported:
+
+```java
+var config = PaperCommandEngineConfigLoader.load(getConfig());
+var platform = PaperPlatform.create(this, config);
+var engine = CommandEngine.create(platform);
+```
+
+## Execution Model
+
+CommandEngine separates command parsing from command execution:
+
+1. Brigadier parses the command.
+2. The generated adapter validates permission and rate limit.
+3. The adapter extracts sender, arguments and flags.
+4. The adapter calls the user command method directly.
+5. Void handlers run on virtual threads by default.
+6. Framework messages are sent through the configured `CommandScheduler`.
+
+Handlers returning `int` remain synchronous because Brigadier needs the result immediately.
+
+Use sync execution explicitly:
+
+```java
+@Execute(async = false)
+@Subcommand("reload")
+public void reload(@Sender CommandSource source) {
+    source.sendMessage("Reloaded.");
+}
+```
+
+## Telemetry
+
+Telemetry is opt-in through the `CommandTelemetry` SPI.
+
+```java
+var telemetry = new LoggingCommandTelemetry(Logger.getLogger("CommandEngine"));
+
+var engine = CommandEngine.builder()
+        .brigadier(brigadierAdapter)
+        .telemetry(telemetry)
+        .build();
+```
+
+The runtime records:
+
+- Command execution duration.
+- Failure reason.
+- Async/sync execution mode.
+- Suggestion generation duration and count.
+
+## Rate Limiting
+
+The public SPI is `CommandRateLimiter`.
+
+```java
+CommandRateLimiter limiter = (source, path) -> true;
+```
+
+The default config path uses a Caffeine-backed limiter:
+
+```java
+var config = CommandEngineConfig.defaults();
+var engine = CommandEngine.builder()
+        .brigadier(brigadierAdapter)
+        .config(config)
+        .build();
+```
+
+Paper loads the same configuration from `config.yml`.
+
+## Testing
+
+Run all tests:
+
+```powershell
+.\gradlew.bat test
+```
+
+Run build, formatting and tests:
+
+```powershell
+.\gradlew.bat spotlessApply build --stacktrace
+```
+
+The test suite covers:
+
+- Processor generation with compile-testing.
+- Generated adapter integration through a real Brigadier dispatcher.
+- Permission checks.
+- Aliases.
+- Greedy arguments.
+- Flags.
+- External argument resolvers.
+- Configurable messages.
+- Rate limiting.
+- Paper bridge permission, syntax, internal error and tab-complete behavior.
+- Paper config loading.
+- Basic high-volume dispatch smoke test.
+
+## Code Style
+
+The build uses Spotless with Palantir Java Format:
+
+```powershell
+.\gradlew.bat spotlessApply
+```
+
+Project conventions:
+
+- Javadocs are written in English.
+- Public APIs use JetBrains nullability annotations where appropriate.
+- Prefer records for immutable data.
+- Prefer early return.
+- Do not use `else` in Java source or generated adapters.
+- Do not use `break` or `continue` in Java source or generated adapters.
+- Keep platform-specific code outside the core runtime.
+- Keep `*.internal.*` packages out of public API usage.
+
+## CI
+
+GitHub Actions runs:
+
+```bash
+./gradlew spotlessCheck build --stacktrace
+```
+
+Workflow:
+
+```text
+.github/workflows/ci.yml
+```
+
+## Documentation
+
+- [Quickstart](docs/QUICKSTART.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Decision Log](docs/DECISION_LOG.md)
+- [Coding Standards](docs/CODING_STANDARDS.md)
+- [Production Checklist](docs/PRODUCTION_CHECKLIST.md)
+
+## Production Readiness
+
+The project is close to internal controlled production use, but still alpha for public consumption.
+
+Before a public release:
+
+- Run the example plugin on a real Paper server.
+- Validate command registration, aliases, reload and disable behavior.
+- Validate tab-complete in game.
+- Validate async handlers do not call thread-confined Paper APIs directly.
+- Decide the stable public API surface for `commandengine-api`.
+- Add release publishing and versioning automation.
+- Add broader platform coverage or explicitly scope the first release to Paper.
+
+Use [Production Checklist](docs/PRODUCTION_CHECKLIST.md) before shipping.
+
+## Roadmap
+
+- Micrometer telemetry module.
+- Graceful suggestion degradation.
+- More Paper integration tests.
+- Public Javadoc publishing.
+- Gradle plugin for command tree inspection and validation.
+- Velocity platform adapter.
+- Fabric platform adapter.
+- Sponge platform adapter.
+- Benchmark suite.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

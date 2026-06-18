@@ -1,0 +1,12 @@
+commandengine:
+  async-timeout-millis: 30000
+  messages:
+    internal-error: "An internal error occurred while executing this command."
+    invalid-sender: "This command cannot be executed by this sender."
+    invalid-syntax: "Invalid command syntax."
+    no-permission: "You do not have permission to execute this command."
+    rate-limited: "You are executing this command too quickly."
+  rate-limit:
+    window-millis: 2000
+    max-executions: 5
+    maximum-size: 10000

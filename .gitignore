@@ -1,0 +1,16 @@
+.gradle/
+build/
+**/build/
+
+# IntelliJ IDEA local/generated files
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
