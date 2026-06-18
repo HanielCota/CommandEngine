@@ -41,8 +41,7 @@ Para Paper, adicione também:
 implementation("com.github.HanielCota.CommandEngine:commandengine-platform-paper:$commandEngineVersion")
 ```
 
-Como o repositório está privado, o consumidor precisa autorizar o JitPack e configurar `authToken` conforme a
-documentação do JitPack.
+Como o repositório é público, o consumidor não precisa configurar credenciais no JitPack.
 
 ```kotlin
 dependencies {

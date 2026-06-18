@@ -234,25 +234,7 @@ Published module artifacts:
 
 The `commandengine-example-paper` module is intentionally not published as a library artifact.
 
-### Private Repository Access
-
-This repository is currently private. To consume it through JitPack, authorize JitPack for your GitHub account and add
-your JitPack token to `$HOME/.gradle/gradle.properties`:
-
-```properties
-authToken=AUTHENTICATION_TOKEN
-```
-
-Then configure the JitPack repository with credentials:
-
-```kotlin
-maven {
-  url = uri("https://jitpack.io")
-  credentials.username = providers.gradleProperty("authToken").get()
-}
-```
-
-For public repositories, credentials are not needed.
+Because this repository is public, JitPack credentials are not required.
 
 ## Quickstart
 

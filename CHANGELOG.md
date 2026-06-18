@@ -28,4 +28,4 @@ The project follows semantic versioning once the public API becomes stable. Alph
 ### Notes
 
 - This is an alpha release. Public API compatibility is not guaranteed.
-- The repository is private at release time, so JitPack consumers need private repository authorization.
+- The repository is public, so JitPack consumers do not need private repository authorization.
