@@ -26,7 +26,7 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Platform entry point for creating a CommandEngine in Paper plugins.
  */
-public final class PaperPlatform implements CommandEngine.Platform {
+public final class PaperPlatform implements CommandEngine.Platform, AutoCloseable {
 
     private final Plugin plugin;
     private final CommandRegistry registry;
@@ -64,7 +64,7 @@ public final class PaperPlatform implements CommandEngine.Platform {
         var platform = new PaperPlatform(plugin, config);
         plugin.getServer()
                 .getPluginManager()
-                .registerEvents(new PluginDisableListener(plugin, platform::unregisterAll), plugin);
+                .registerEvents(new PluginDisableListener(plugin, platform::close), plugin);
         return platform;
     }
 
@@ -114,5 +114,17 @@ public final class PaperPlatform implements CommandEngine.Platform {
         }
         registry.unregisterAll(plugin);
         brigadier.unregisterAll();
+    }
+
+    @Override
+    public void close() {
+        unregisterAll();
+        if (executor instanceof AutoCloseable closeable) {
+            try {
+                closeable.close();
+            } catch (Exception exception) {
+                throw new IllegalStateException("Failed to close command executor", exception);
+            }
+        }
     }
 }

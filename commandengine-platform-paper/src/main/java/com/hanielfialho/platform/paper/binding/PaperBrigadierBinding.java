@@ -9,6 +9,8 @@ import com.hanielfialho.runtime.util.Preconditions;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import java.lang.reflect.Field;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -99,6 +101,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
             return;
         }
         command.unregister(commandMap);
+        removeCommandMapEntries(command);
     }
 
     public void unregisterAll() {
@@ -123,5 +126,34 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
 
     private Logger logger() {
         return plugin == null ? Logger.getLogger(PaperBrigadierBinding.class.getName()) : plugin.getLogger();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void removeCommandMapEntries(Command command) {
+        try {
+            Field knownCommandsField = findField(commandMap.getClass(), "knownCommands");
+            knownCommandsField.setAccessible(true);
+            Map<String, Command> knownCommands = (Map<String, Command>) knownCommandsField.get(commandMap);
+            for (Iterator<Map.Entry<String, Command>> iterator = knownCommands.entrySet().iterator();
+                    iterator.hasNext(); ) {
+                if (iterator.next().getValue() == command) {
+                    iterator.remove();
+                }
+            }
+        } catch (ReflectiveOperationException exception) {
+            log(() -> "Unable to remove command map entries for " + command.getName(), exception);
+        }
+    }
+
+    private Field findField(Class<?> type, String name) throws NoSuchFieldException {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                return current.getDeclaredField(name);
+            } catch (NoSuchFieldException exception) {
+                current = current.getSuperclass();
+            }
+        }
+        throw new NoSuchFieldException(name);
     }
 }

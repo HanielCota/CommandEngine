@@ -4,7 +4,9 @@ import com.hanielfialho.processor.model.CommandModel;
 import com.hanielfialho.processor.model.ParameterModel;
 import com.hanielfialho.processor.model.SubcommandModel;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 final class AdapterTreeRenderer {
 
@@ -139,7 +141,7 @@ final class AdapterTreeRenderer {
                     .append(".executes(this::execute")
                     .append(subIndex)
                     .append(");\n");
-            renderFlagNodes(code, attachTo, subIndex, flags, 0);
+            renderFlagNodes(code, attachTo, subIndex, flags, Set.of());
         }
         if (!commandArguments.isEmpty()) {
             renderArgumentNodes(code, attachTo, subIndex, commandArguments, flags);
@@ -185,7 +187,7 @@ final class AdapterTreeRenderer {
                         .append(".executes(this::execute")
                         .append(subIndex)
                         .append(");\n");
-                renderFlagNodes(code, executableNode, subIndex, flags, 0);
+                renderFlagNodes(code, executableNode, subIndex, flags, Set.of());
             }
 
             if (argIndex == commandArguments.size() - 1) {
@@ -194,7 +196,7 @@ final class AdapterTreeRenderer {
                         .append(".executes(this::execute")
                         .append(subIndex)
                         .append(");\n");
-                renderFlagNodes(code, variable, subIndex, flags, 0);
+                renderFlagNodes(code, variable, subIndex, flags, Set.of());
             }
             previousArgument = variable;
         }
@@ -213,8 +215,11 @@ final class AdapterTreeRenderer {
     }
 
     private void renderFlagNodes(
-            StringBuilder code, String targetNode, int subIndex, List<ParameterModel> flags, int startIndex) {
-        for (int flagIndex = startIndex; flagIndex < flags.size(); flagIndex++) {
+            StringBuilder code, String targetNode, int subIndex, List<ParameterModel> flags, Set<Integer> usedFlags) {
+        for (int flagIndex = 0; flagIndex < flags.size(); flagIndex++) {
+            if (usedFlags.contains(flagIndex)) {
+                continue;
+            }
             ParameterModel flag = flags.get(flagIndex);
             String variable = "flag" + subIndex + "_" + generatedNodeCounter++;
             code.append("        LiteralArgumentBuilder<CommandSource> ")
@@ -224,12 +229,14 @@ final class AdapterTreeRenderer {
                     .append("\").executes(this::execute")
                     .append(subIndex)
                     .append(");\n");
+            Set<Integer> nextUsedFlags = new HashSet<>(usedFlags);
+            nextUsedFlags.add(flagIndex);
+            renderFlagNodes(code, variable, subIndex, flags, nextUsedFlags);
             code.append("        ")
                     .append(targetNode)
                     .append(".then(")
                     .append(variable)
                     .append(");\n");
-            renderFlagNodes(code, variable, subIndex, flags, flagIndex + 1);
 
             if (flag.getShorthand() != '\0') {
                 String shorthandVariable = "flag" + subIndex + "_" + generatedNodeCounter++;
@@ -240,12 +247,12 @@ final class AdapterTreeRenderer {
                         .append("\").executes(this::execute")
                         .append(subIndex)
                         .append(");\n");
+                renderFlagNodes(code, shorthandVariable, subIndex, flags, nextUsedFlags);
                 code.append("        ")
                         .append(targetNode)
                         .append(".then(")
                         .append(shorthandVariable)
                         .append(");\n");
-                renderFlagNodes(code, shorthandVariable, subIndex, flags, flagIndex + 1);
             }
         }
     }

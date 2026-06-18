@@ -16,6 +16,13 @@ public final class IntegrationDebugCommand {
         events.add("verbose:" + verbose);
     }
 
+    @Subcommand("multi")
+    public void multi(
+            @Flag(value = "alpha", shorthand = 'a') boolean alpha,
+            @Flag(value = "beta", shorthand = 'b') boolean beta) {
+        events.add("multi:" + alpha + ":" + beta);
+    }
+
     public List<String> events() {
         return List.copyOf(events);
     }

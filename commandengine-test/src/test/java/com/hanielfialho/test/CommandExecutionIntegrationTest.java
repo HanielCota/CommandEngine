@@ -51,10 +51,11 @@ final class CommandExecutionIntegrationTest {
         harness.dispatcher().execute("w", source);
         harness.dispatcher().execute("eco pay 100", source);
         harness.dispatcher().execute("debug toggle --verbose", source);
+        harness.dispatcher().execute("debug multi --beta --alpha", source);
 
         waitUntil(() -> warp.events().size() == 7
                 && economy.events().size() == 1
-                && debug.events().size() == 1);
+                && debug.events().size() == 2);
 
         assertThat(warp.events())
                 .containsExactlyInAnyOrder(
@@ -66,7 +67,7 @@ final class CommandExecutionIntegrationTest {
                         "root:tester:root,alpha",
                         "root:tester:");
         assertThat(economy.events()).containsExactly("pay:100");
-        assertThat(debug.events()).containsExactly("verbose:true");
+        assertThat(debug.events()).containsExactlyInAnyOrder("verbose:true", "multi:true:true");
 
         var parse = harness.dispatcher().parse("warp teleport s", source);
         var suggestions = harness.dispatcher().getCompletionSuggestions(parse).join();
