@@ -88,13 +88,15 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         Preconditions.checkNotNull(metadata, "metadata");
         dispatcher.getRoot().addChild(node);
 
-        if (plugin == null || commandMap == null || !node.getName().equals(metadata.name())) {
+        Plugin currentPlugin = plugin;
+        CommandMap currentCommandMap = commandMap;
+        if (currentPlugin == null || currentCommandMap == null || !node.getName().equals(metadata.name())) {
             return node;
         }
 
-        removeClaimedPluginCommands(metadata);
+        removeClaimedPluginCommands(currentCommandMap, currentPlugin, metadata);
         Command command = new PaperBridgeCommand(metadata, dispatcher, logger(), messages);
-        commandMap.register(plugin.getName().toLowerCase(), command);
+        currentCommandMap.register(currentPlugin.getName().toLowerCase(Locale.ROOT), command);
         registeredCommands.put(metadata.name(), command);
         return node;
     }
@@ -119,11 +121,12 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
             }
         }
         registeredCommands.remove(name);
-        if (command == null || commandMap == null) {
+        CommandMap currentCommandMap = commandMap;
+        if (command == null || currentCommandMap == null) {
             return;
         }
-        command.unregister(commandMap);
-        removeCommandMapEntries(command);
+        command.unregister(currentCommandMap);
+        removeCommandMapEntries(currentCommandMap, command);
     }
 
     public void unregisterAll() {
@@ -163,9 +166,9 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
     }
 
     @SuppressWarnings("unchecked")
-    private void removeCommandMapEntries(Command command) {
+    private void removeCommandMapEntries(CommandMap currentCommandMap, Command command) {
         try {
-            Map<String, Command> knownCommands = knownCommands();
+            Map<String, Command> knownCommands = knownCommands(currentCommandMap);
             for (Iterator<Map.Entry<String, Command>> iterator =
                             knownCommands.entrySet().iterator();
                     iterator.hasNext(); ) {
@@ -178,13 +181,14 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         }
     }
 
-    private void removeClaimedPluginCommands(CommandMetadata metadata) {
+    private void removeClaimedPluginCommands(
+            CommandMap currentCommandMap, Plugin currentPlugin, CommandMetadata metadata) {
         try {
-            Map<String, Command> knownCommands = knownCommands();
+            Map<String, Command> knownCommands = knownCommands(currentCommandMap);
             Set<String> labels = commandLabels(metadata);
             Set<Command> claimedCommands = Collections.newSetFromMap(new IdentityHashMap<>());
             for (Command command : knownCommands.values()) {
-                if (isOwnedByPlugin(command) && usesAnyLabel(command, labels)) {
+                if (isOwnedByPlugin(command, currentPlugin) && usesAnyLabel(command, labels)) {
                     claimedCommands.add(command);
                 }
             }
@@ -192,7 +196,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
                 return;
             }
             for (Command claimed : claimedCommands) {
-                claimed.unregister(commandMap);
+                claimed.unregister(currentCommandMap);
             }
             for (Iterator<Map.Entry<String, Command>> iterator =
                             knownCommands.entrySet().iterator();
@@ -206,8 +210,8 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         }
     }
 
-    private boolean isOwnedByPlugin(Command command) {
-        return command instanceof PluginIdentifiableCommand identifiable && identifiable.getPlugin() == plugin;
+    private boolean isOwnedByPlugin(Command command, Plugin currentPlugin) {
+        return command instanceof PluginIdentifiableCommand identifiable && identifiable.getPlugin() == currentPlugin;
     }
 
     private boolean usesAnyLabel(Command command, Set<String> labels) {
@@ -240,10 +244,10 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Command> knownCommands() throws ReflectiveOperationException {
-        Field knownCommandsField = findField(commandMap.getClass(), "knownCommands");
+    private Map<String, Command> knownCommands(CommandMap currentCommandMap) throws ReflectiveOperationException {
+        Field knownCommandsField = findField(currentCommandMap.getClass(), "knownCommands");
         knownCommandsField.setAccessible(true);
-        return (Map<String, Command>) knownCommandsField.get(commandMap);
+        return (Map<String, Command>) knownCommandsField.get(currentCommandMap);
     }
 
     private Field findField(Class<?> type, String name) throws NoSuchFieldException {

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Public facade used to register command instances through generated adapters.
@@ -218,10 +219,7 @@ public final class CommandEngine implements AutoCloseable {
     private CommandAdapter instantiateAdapter(Object commandInstance) {
         Preconditions.checkNotNull(commandInstance, "commandInstance");
         var classLoader = commandInstance.getClass().getClassLoader();
-        var factories = FACTORIES_BY_CLASSLOADER.computeIfAbsent(
-                classLoader, loader -> ServiceLoader.load(CommandAdapterFactory.class, loader).stream()
-                        .map(ServiceLoader.Provider::get)
-                        .toList());
+        var factories = adapterFactories(classLoader);
         for (var factory : factories) {
             if (factory.supports(commandInstance)) {
                 return factory.createAdapter(
@@ -232,6 +230,18 @@ public final class CommandEngine implements AutoCloseable {
         throw new IllegalArgumentException("No generated adapter factory found for "
                 + commandInstance.getClass().getName()
                 + ". Ensure the class is annotated with @Command and compiled with CommandEngineProcessor.");
+    }
+
+    private static @NotNull List<CommandAdapterFactory> adapterFactories(@Nullable ClassLoader classLoader) {
+        if (classLoader == null) {
+            return ServiceLoader.load(CommandAdapterFactory.class).stream()
+                    .map(ServiceLoader.Provider::get)
+                    .toList();
+        }
+        return FACTORIES_BY_CLASSLOADER.computeIfAbsent(
+                classLoader, loader -> ServiceLoader.load(CommandAdapterFactory.class, loader).stream()
+                        .map(ServiceLoader.Provider::get)
+                        .toList());
     }
 
     private static RuntimeException addSuppressed(RuntimeException failure, RuntimeException exception) {
