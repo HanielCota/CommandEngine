@@ -11,6 +11,39 @@ Este guia mostra o caminho mínimo para usar o CommandEngine em Java 25.
 
 ## Dependências Gradle
 
+Via JitPack, adicione o repositório:
+
+```kotlin
+dependencyResolutionManagement {
+  repositories {
+    mavenCentral()
+    maven("https://repo.papermc.io/repository/maven-public/")
+    maven("https://jitpack.io")
+  }
+}
+```
+
+E consuma os módulos publicados:
+
+```kotlin
+val commandEngineVersion = "main-SNAPSHOT"
+
+dependencies {
+  implementation("com.github.HanielCota.CommandEngine:commandengine-api:$commandEngineVersion")
+  implementation("com.github.HanielCota.CommandEngine:commandengine-runtime:$commandEngineVersion")
+  annotationProcessor("com.github.HanielCota.CommandEngine:commandengine-processor:$commandEngineVersion")
+}
+```
+
+Para Paper, adicione também:
+
+```kotlin
+implementation("com.github.HanielCota.CommandEngine:commandengine-platform-paper:$commandEngineVersion")
+```
+
+Como o repositório está privado, o consumidor precisa autorizar o JitPack e configurar `authToken` conforme a
+documentação do JitPack.
+
 ```kotlin
 dependencies {
   implementation(project(":commandengine-api"))

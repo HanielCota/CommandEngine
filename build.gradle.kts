@@ -1,4 +1,6 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
@@ -36,7 +38,18 @@ tasks.named("build") {
 }
 
 allprojects {
-  group = "com.hanielfialho"
+  val jitpackGroup = providers.environmentVariable("GROUP").orNull
+  val jitpackArtifact = providers.environmentVariable("ARTIFACT").orNull
+  group =
+      if (
+          providers.environmentVariable("JITPACK").isPresent &&
+              jitpackGroup != null &&
+              jitpackArtifact != null
+      ) {
+        "$jitpackGroup.$jitpackArtifact"
+      } else {
+        "com.hanielfialho"
+      }
   version = "0.1.0-SNAPSHOT"
 }
 
@@ -45,6 +58,10 @@ subprojects {
   apply(plugin = "idea")
   apply(plugin = "jacoco")
   apply(plugin = "com.diffplug.spotless")
+
+  if (name != "commandengine-example-paper") {
+    apply(plugin = "maven-publish")
+  }
 
   extensions.configure<org.gradle.plugins.ide.idea.model.IdeaModel>("idea") {
     module {
@@ -64,8 +81,42 @@ subprojects {
 
   java {
     modularity.inferModulePath.set(true)
+    withSourcesJar()
     toolchain {
       languageVersion.set(JavaLanguageVersion.of(25))
+    }
+  }
+
+  pluginManager.withPlugin("maven-publish") {
+    extensions.configure<PublishingExtension>("publishing") {
+      publications {
+        create<MavenPublication>("mavenJava") {
+          from(components["java"])
+          artifactId = project.name
+          pom {
+            name.set(project.name)
+            description.set("CommandEngine module ${project.name}")
+            url.set("https://github.com/HanielCota/CommandEngine")
+            licenses {
+              license {
+                name.set("MIT License")
+                url.set("https://opensource.org/license/mit")
+              }
+            }
+            developers {
+              developer {
+                id.set("HanielCota")
+                name.set("Haniel Fialho")
+              }
+            }
+            scm {
+              connection.set("scm:git:https://github.com/HanielCota/CommandEngine.git")
+              developerConnection.set("scm:git:https://github.com/HanielCota/CommandEngine.git")
+              url.set("https://github.com/HanielCota/CommandEngine")
+            }
+          }
+        }
+      }
     }
   }
 

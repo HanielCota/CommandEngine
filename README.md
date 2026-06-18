@@ -137,6 +137,76 @@ Example commands:
 - `/cexample ping`
 - `/cexample echo <message>`
 
+## Installing from JitPack
+
+Add JitPack to your repositories:
+
+```kotlin
+dependencyResolutionManagement {
+  repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+  repositories {
+    mavenCentral()
+    maven("https://repo.papermc.io/repository/maven-public/")
+    maven("https://jitpack.io")
+  }
+}
+```
+
+Use a Git tag, commit hash or `main-SNAPSHOT` as the version:
+
+```kotlin
+val commandEngineVersion = "main-SNAPSHOT"
+
+dependencies {
+  implementation("com.github.HanielCota.CommandEngine:commandengine-api:$commandEngineVersion")
+  implementation("com.github.HanielCota.CommandEngine:commandengine-runtime:$commandEngineVersion")
+  annotationProcessor("com.github.HanielCota.CommandEngine:commandengine-processor:$commandEngineVersion")
+}
+```
+
+For Paper:
+
+```kotlin
+val commandEngineVersion = "main-SNAPSHOT"
+
+dependencies {
+  implementation("com.github.HanielCota.CommandEngine:commandengine-api:$commandEngineVersion")
+  implementation("com.github.HanielCota.CommandEngine:commandengine-runtime:$commandEngineVersion")
+  implementation("com.github.HanielCota.CommandEngine:commandengine-platform-paper:$commandEngineVersion")
+  annotationProcessor("com.github.HanielCota.CommandEngine:commandengine-processor:$commandEngineVersion")
+}
+```
+
+Published module artifacts:
+
+- `commandengine-api`
+- `commandengine-runtime`
+- `commandengine-processor`
+- `commandengine-platform-paper`
+- `commandengine-test`
+
+The `commandengine-example-paper` module is intentionally not published as a library artifact.
+
+### Private Repository Access
+
+This repository is currently private. To consume it through JitPack, authorize JitPack for your GitHub account and add
+your JitPack token to `$HOME/.gradle/gradle.properties`:
+
+```properties
+authToken=AUTHENTICATION_TOKEN
+```
+
+Then configure the JitPack repository with credentials:
+
+```kotlin
+maven {
+  url = uri("https://jitpack.io")
+  credentials.username = providers.gradleProperty("authToken").get()
+}
+```
+
+For public repositories, credentials are not needed.
+
 ## Quickstart
 
 ### Gradle Dependencies
