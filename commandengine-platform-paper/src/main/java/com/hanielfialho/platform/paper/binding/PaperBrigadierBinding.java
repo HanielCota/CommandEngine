@@ -134,7 +134,8 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
             Field knownCommandsField = findField(commandMap.getClass(), "knownCommands");
             knownCommandsField.setAccessible(true);
             Map<String, Command> knownCommands = (Map<String, Command>) knownCommandsField.get(commandMap);
-            for (Iterator<Map.Entry<String, Command>> iterator = knownCommands.entrySet().iterator();
+            for (Iterator<Map.Entry<String, Command>> iterator =
+                            knownCommands.entrySet().iterator();
                     iterator.hasNext(); ) {
                 if (iterator.next().getValue() == command) {
                     iterator.remove();
