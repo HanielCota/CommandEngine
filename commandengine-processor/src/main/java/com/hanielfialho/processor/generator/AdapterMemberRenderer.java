@@ -40,7 +40,7 @@ final class AdapterMemberRenderer {
         code.append("            try {\n");
         code.append("                command.run();\n");
         code.append("                return CommandResult.success();\n");
-        code.append("            } catch (RuntimeException exception) {\n");
+        code.append("            } catch (Throwable exception) {\n");
         code.append(
                 "                return CommandResult.failure(FailureReason.EXCEPTION, DEFAULT_MESSAGES.internalError());\n");
         code.append("            }\n");
@@ -48,9 +48,7 @@ final class AdapterMemberRenderer {
         code.append("        @Override\n");
         code.append(
                 "        public CompletableFuture<CommandResult> executeAsync(CommandSource source, Runnable command) {\n");
-        code.append("            CompletableFuture<CommandResult> future = new CompletableFuture<>();\n");
-        code.append("            Thread.startVirtualThread(() -> future.complete(executeSync(source, command)));\n");
-        code.append("            return future;\n");
+        code.append("            return CompletableFuture.completedFuture(executeSync(source, command));\n");
         code.append("        }\n");
         code.append("    };\n\n");
     }
@@ -63,7 +61,8 @@ final class AdapterMemberRenderer {
         code.append("    private final CommandMessages messages;\n");
         code.append("    private final CommandTelemetry telemetry;\n");
         code.append("    private final CommandRateLimiter rateLimiter;\n");
-        code.append("    private final List<String> registeredNames = new ArrayList<>();\n\n");
+        code.append(
+                "    private final List<String> registeredNames = new java.util.concurrent.CopyOnWriteArrayList<>();\n\n");
     }
 
     private void renderConstructors(StringBuilder code, String adapterName) {

@@ -46,9 +46,9 @@ final class CommandExecutionIntegrationTest {
         harness.dispatcher().execute("warp broadcast hello brave world", source);
         harness.dispatcher().execute("warp args alpha beta gamma", source);
         harness.dispatcher().execute("warp list one two", source);
-        harness.dispatcher().execute("warp args", source);
+        harness.dispatcher().execute("warp args delta", source);
         harness.dispatcher().execute("warp root alpha", source);
-        harness.dispatcher().execute("w", source);
+        harness.dispatcher().execute("w epsilon", source);
         harness.dispatcher().execute("eco pay 100", source);
         harness.dispatcher().execute("debug toggle --verbose", source);
         harness.dispatcher().execute("debug multi --beta --alpha", source);
@@ -63,9 +63,9 @@ final class CommandExecutionIntegrationTest {
                         "broadcast:hello brave world",
                         "args:alpha,beta,gamma",
                         "list:one,two",
-                        "args:",
+                        "args:delta",
                         "root:tester:root,alpha",
-                        "root:tester:");
+                        "root:tester:epsilon");
         assertThat(economy.events()).containsExactly("pay:100");
         assertThat(debug.events()).containsExactlyInAnyOrder("verbose:true", "multi:true:true");
 
@@ -204,6 +204,27 @@ final class CommandExecutionIntegrationTest {
     }
 
     @Test
+    void handlesCustomArgumentResolverExceptionsAsInternalError() throws Exception {
+        var adapter = new LocalBrigadierAdapter();
+        var engine = CommandEngine.builder()
+                .brigadier(adapter)
+                .argumentResolver(new FailingArgumentResolver())
+                .build();
+        var source = new MockCommandSource("tester");
+        var command = new IntegrationTimeCommand();
+
+        engine.register(command);
+
+        int result = adapter.dispatcher().execute("time parse invalid", source);
+
+        waitUntil(() -> source.messages().size() == 1);
+
+        assertThat(result).isEqualTo(1);
+        assertThat(command.events()).isEmpty();
+        assertThat(source.messages()).containsExactly("An internal error occurred while executing this command.");
+    }
+
+    @Test
     void dispatchesManyGeneratedCommandsWithoutDroppingExecutions() throws Exception {
         var harness = TestEngine.harness();
         var source = new MockCommandSource("stress-tester");
@@ -242,6 +263,24 @@ final class CommandExecutionIntegrationTest {
         @Override
         public Instant resolve(CommandContext<?> context, String name) {
             return Instant.parse(StringArgumentType.getString(context, name));
+        }
+    }
+
+    private static final class FailingArgumentResolver implements ArgumentTypeResolver<Instant> {
+
+        @Override
+        public Class<Instant> type() {
+            return Instant.class;
+        }
+
+        @Override
+        public ArgumentType<?> argumentType() {
+            return StringArgumentType.greedyString();
+        }
+
+        @Override
+        public Instant resolve(CommandContext<?> context, String name) {
+            throw new IllegalArgumentException("resolver failure");
         }
     }
 

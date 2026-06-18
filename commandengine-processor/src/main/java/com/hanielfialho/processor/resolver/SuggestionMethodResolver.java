@@ -7,6 +7,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 
@@ -43,6 +44,15 @@ public final class SuggestionMethodResolver {
                     .printMessage(Diagnostic.Kind.ERROR, "@SuggestionProvider value must not be blank", enclosed);
             return;
         }
+        if (methods.containsKey(annotation.value())) {
+            processingEnv
+                    .getMessager()
+                    .printMessage(
+                            Diagnostic.Kind.ERROR,
+                            "Duplicate @SuggestionProvider value: " + annotation.value(),
+                            enclosed);
+            return;
+        }
 
         if (!method.getParameters().isEmpty()) {
             processingEnv
@@ -52,7 +62,18 @@ public final class SuggestionMethodResolver {
             return;
         }
 
-        if (!method.getReturnType().toString().startsWith("java.util.List")) {
+        if (method.getModifiers().contains(Modifier.PRIVATE)
+                || method.getModifiers().contains(Modifier.STATIC)) {
+            processingEnv
+                    .getMessager()
+                    .printMessage(
+                            Diagnostic.Kind.ERROR,
+                            "@SuggestionProvider methods must be instance methods accessible to the generated adapter",
+                            enclosed);
+            return;
+        }
+
+        if (!"java.util.List<java.lang.String>".equals(method.getReturnType().toString())) {
             processingEnv
                     .getMessager()
                     .printMessage(
@@ -62,6 +83,33 @@ public final class SuggestionMethodResolver {
             return;
         }
 
+        if (hasCheckedExceptions(method)) {
+            processingEnv
+                    .getMessager()
+                    .printMessage(
+                            Diagnostic.Kind.ERROR,
+                            "@SuggestionProvider methods must not declare checked exceptions",
+                            enclosed);
+            return;
+        }
+
         methods.put(annotation.value(), method.getSimpleName().toString());
+    }
+
+    private boolean hasCheckedExceptions(ExecutableElement method) {
+        var runtimeException = processingEnv.getElementUtils().getTypeElement("java.lang.RuntimeException");
+        var error = processingEnv.getElementUtils().getTypeElement("java.lang.Error");
+        if (runtimeException == null || error == null) {
+            return !method.getThrownTypes().isEmpty();
+        }
+        var runtimeType = runtimeException.asType();
+        var errorType = error.asType();
+        var typeUtils = processingEnv.getTypeUtils();
+        for (var thrownType : method.getThrownTypes()) {
+            if (!typeUtils.isSubtype(thrownType, runtimeType) && !typeUtils.isSubtype(thrownType, errorType)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

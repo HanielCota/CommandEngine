@@ -28,7 +28,7 @@ public final class SyncExecutor implements CommandExecutor {
         try {
             command.run();
             return CommandResult.success();
-        } catch (RuntimeException exception) {
+        } catch (Throwable exception) {
             return CommandResult.failure(FailureReason.EXCEPTION, messages.internalError());
         }
     }

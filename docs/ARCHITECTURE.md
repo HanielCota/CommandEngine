@@ -30,11 +30,7 @@ commandengine/
 ├── commandengine-runtime/          # Motor em produção. Leve, sem reflection.
 ├── commandengine-platform-paper/   # Adapter Paper/Purpur
 ├── commandengine-example-paper/    # Plugin Paper mínimo para smoke tests manuais
-├── commandengine-platform-velocity/# Proxy
-├── commandengine-platform-fabric/ # Mod
-├── commandengine-platform-sponge/ # Sponge
-├── commandengine-test/             # Test utilities (MockCommandSource, etc.)
-└── commandengine-gradle-plugin/    # DX tooling (futuro)
+└── commandengine-test/             # Test utilities (MockCommandSource, etc.)
 ```
 
 ### Regras de Dependência
@@ -67,7 +63,7 @@ api/
 ├── result/              # CommandResult, Success, Failure, FailureReason
 ├── registry/            # CommandRegistry, RegistryBuilder
 ├── suggestion/          # SuggestionProvider, Suggestion
-├── event/               # CommandEvent, CommandPreExecuteEvent, CommandPostExecuteEvent
+├── event/               # CommandEvent (SPI; pre/post execute events are not implemented yet)
 ├── message/             # CommandMessages
 ├── rate/                # CommandRateLimiter
 ├── scheduler/           # CommandScheduler
@@ -176,8 +172,8 @@ public @interface Arg {
     String suggests() default "";     // Método ou classe de sugestão
     int minLength() default 0;        // Validação
     int maxLength() default Integer.MAX_VALUE;
-    double min() default Double.MIN_VALUE;
-    double max() default Double.MAX_VALUE;
+    double min() default Double.NEGATIVE_INFINITY;
+    double max() default Double.POSITIVE_INFINITY;
 }
 ```
 
@@ -232,7 +228,6 @@ Para cada classe `@Command`, o processor gera:
 1. **`<Nome>CommandAdapter.java`** — Implementa `CommandAdapter`. Contém a árvore Brigadier e as chamadas diretas ao
    handler.
 2. **`<Nome>CommandAdapterFactory.java`** — Factory type-safe para instanciar o adapter.
-3. **`<Nome>CommandDocumentation.java`** — Metadados estáticos em JSON (para wiki/docs).
 
 ### Regras de Geração
 
@@ -299,7 +294,7 @@ public final class GuildCommandAdapter implements CommandAdapter {
 - Recebe `CommandContext` do Brigadier.
 - Extrai `CommandSource`.
 - Roteia para o adapter correto (hash map O(1) por path).
-- Dispara `CommandPreExecuteEvent` → executa → `CommandPostExecuteEvent`.
+- Telemetry é registrada pelo `TelemetryCommandExecutor` ao redor da execução.
 
 ### Async Executor
 
@@ -313,8 +308,8 @@ public class VirtualThreadExecutor {
 }
 ```
 
-**Fallback:** Se JVM < 21 ou `Executors.newVirtualThreadPerTaskExecutor()` falhar, usa `ForkJoinPool.commonPool()` com
-warning no log.
+**Fallback:** Se a JVM não suportar virtual threads, `Executors.newCachedThreadPool()` é usado em vez de
+`Executors.newVirtualThreadPerTaskExecutor()`.
 
 ### Cache (Caffeine)
 
@@ -367,16 +362,6 @@ warning no log.
 - O comando `/cexample ping` valida registro, permissão, bridge Paper e mensagem síncrona.
 - O comando `/cexample echo <message>` valida argumento greedy e execução async.
 
-### Velocity
-
-- `VelocityCommandSource` adapta `CommandSource` (Velocity) para `CommandSource` (CE).
-- Resolvers: `Player` (Velocity API).
-
-### Fabric
-
-- `FabricBrigadierBinding` registra no `CommandDispatcher` do servidor Minecraft.
-- Resolvers: `ServerPlayerEntity`, `ServerWorld`, `Identifier`.
-
 ---
 
 ## 8. Segurança e Produção
@@ -392,11 +377,6 @@ warning no log.
 - `CommandAdapter` tem `unregister()`.
 - `DefaultCommandRegistry` tem `unregisterAll(Object owner)`.
 - `PaperEventBridge` escuta `PluginDisableEvent` para auto-unregister.
-
-### Context Propagation (Async)
-
-- `ScopedValue` (Java 24+) ou `MDC` propagado no wrapper async do adapter.
-- `CommandSource` é capturado no início e passado para a thread async.
 
 ---
 

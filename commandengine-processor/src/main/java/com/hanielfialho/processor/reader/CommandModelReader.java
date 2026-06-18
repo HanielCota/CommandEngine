@@ -17,18 +17,23 @@ import com.hanielfialho.processor.model.ParameterModel;
 import com.hanielfialho.processor.model.SubcommandModel;
 import com.hanielfialho.processor.resolver.SuggestionMethodResolver;
 import com.hanielfialho.processor.validation.SupportedCommandTypes;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.tools.Diagnostic;
 
 public final class CommandModelReader {
+
+    private static final int MAX_FLAGS_PER_SUBCOMMAND = 5;
 
     private final ProcessingEnvironment processingEnv;
 
@@ -47,6 +52,13 @@ public final class CommandModelReader {
             error("@Command name must not be blank", element);
             return Optional.empty();
         }
+        if (!isValidCommandName(annotation.name())) {
+            error("@Command name contains invalid characters: " + annotation.name(), element);
+            return Optional.empty();
+        }
+        if (!validateAliases(annotation.name(), annotation.aliases(), element)) {
+            return Optional.empty();
+        }
 
         var typeElement = (TypeElement) element;
         var model = new CommandModel(
@@ -56,9 +68,18 @@ public final class CommandModelReader {
                 annotation.description(),
                 annotation.permission());
         var suggestionMethods = new SuggestionMethodResolver(processingEnv).resolve(typeElement);
+        var subcommandPaths = new HashSet<String>();
 
         for (var enclosed : typeElement.getEnclosedElements()) {
-            readSubcommand(enclosed, annotation.permission(), suggestionMethods).ifPresent(model::addSubcommand);
+            var subcommand = readSubcommand(enclosed, annotation.permission(), suggestionMethods);
+            if (subcommand.isEmpty()) {
+                continue;
+            }
+            if (!subcommandPaths.add(subcommand.get().getPath())) {
+                error("Duplicate @Subcommand path: " + subcommand.get().getPath(), enclosed);
+                return Optional.empty();
+            }
+            model.addSubcommand(subcommand.get());
         }
 
         return Optional.of(new CommandDefinition(typeElement, model));
@@ -82,12 +103,33 @@ public final class CommandModelReader {
         }
 
         var method = (ExecutableElement) element;
+        if (method.getModifiers().contains(Modifier.PRIVATE)) {
+            error("@Subcommand handler must not be private", element);
+            return Optional.empty();
+        }
+        if (method.getModifiers().contains(Modifier.STATIC)) {
+            error("@Subcommand handler must not be static", element);
+            return Optional.empty();
+        }
+        if (hasCheckedExceptions(method)) {
+            error("@Subcommand handler must not declare checked exceptions", element);
+            return Optional.empty();
+        }
         var exec = element.getAnnotation(Execute.class);
         var methodSuggestions = element.getAnnotation(Suggestions.class);
         var subcommandPath = conventionRootHandler ? "" : sub.value();
+        if (!isValidSubcommandPath(subcommandPath)) {
+            error("@Subcommand path contains invalid characters or segments", element);
+            return Optional.empty();
+        }
+        var returnType = method.getReturnType();
+        var returnsVoid = returnType.getKind() == TypeKind.VOID;
+        if (!returnsVoid && !isValidIntReturnType(returnType)) {
+            error("@Subcommand handler must return void or int", element);
+            return Optional.empty();
+        }
         var subcommandPermission =
                 conventionRootHandler || sub.permission().isBlank() ? commandPermission : sub.permission();
-        var returnsVoid = method.getReturnType().getKind() == TypeKind.VOID;
         if (!returnsVoid && exec != null && exec.async()) {
             error("@Execute(async = true) requires a void command handler", element);
             return Optional.empty();
@@ -100,8 +142,11 @@ public final class CommandModelReader {
                 returnsVoid && (exec == null || exec.async()),
                 returnsVoid);
 
+        var parameterNames = new HashSet<String>();
+        var shorthandFlags = new HashSet<Character>();
         for (var parameter : method.getParameters()) {
-            if (!readParameter(parameter, subcommand, suggestionMethods, methodSuggestions)) {
+            if (!readParameter(
+                    parameter, subcommand, suggestionMethods, methodSuggestions, parameterNames, shorthandFlags)) {
                 return Optional.empty();
             }
         }
@@ -111,6 +156,12 @@ public final class CommandModelReader {
         if (!validateGreedyFlags(subcommand, element)) {
             return Optional.empty();
         }
+        if (!validateOptionalArgumentPosition(subcommand, element)) {
+            return Optional.empty();
+        }
+        if (!validateFlagCount(subcommand, element)) {
+            return Optional.empty();
+        }
         return Optional.of(subcommand);
     }
 
@@ -118,7 +169,9 @@ public final class CommandModelReader {
             VariableElement parameter,
             SubcommandModel subcommand,
             Map<String, String> suggestionMethods,
-            Suggestions methodSuggestions) {
+            Suggestions methodSuggestions,
+            Set<String> parameterNames,
+            Set<Character> shorthandFlags) {
         var sender = parameter.getAnnotation(Sender.class);
         var arg = parameter.getAnnotation(Arg.class);
         var flag = parameter.getAnnotation(Flag.class);
@@ -129,6 +182,26 @@ public final class CommandModelReader {
 
         if (annotationCount > 1) {
             error("Command parameters must have at most one of @Sender, @Arg, or @Flag", parameter);
+            return false;
+        }
+        if (arg != null && arg.value().isBlank()) {
+            error("@Arg value must not be blank", parameter);
+            return false;
+        }
+        if (flag != null && flag.value().isBlank()) {
+            error("@Flag value must not be blank", parameter);
+            return false;
+        }
+        if (flag != null && flag.shorthand() != '\0' && Character.isWhitespace(flag.shorthand())) {
+            error("@Flag shorthand must not be whitespace", parameter);
+            return false;
+        }
+        if (arg != null && !isValidCommandName(arg.value())) {
+            error("@Arg value contains invalid characters: " + arg.value(), parameter);
+            return false;
+        }
+        if (flag != null && !isValidCommandName(flag.value())) {
+            error("@Flag value contains invalid characters: " + flag.value(), parameter);
             return false;
         }
 
@@ -145,6 +218,48 @@ public final class CommandModelReader {
                         ? ParameterModel.Kind.SENDER
                         : arg != null ? ParameterModel.Kind.ARGUMENT : ParameterModel.Kind.FLAG;
 
+        if (kind == ParameterModel.Kind.SENDER && parameter.asType().getKind().isPrimitive()) {
+            error("@Sender parameters must not be primitive types", parameter);
+            return false;
+        }
+        if (kind == ParameterModel.Kind.SENDER && (optional != null || greedy != null)) {
+            error("@Optional and @Greedy are not allowed on @Sender parameters", parameter);
+            return false;
+        }
+        if (kind == ParameterModel.Kind.FLAG && optional != null) {
+            error("@Optional is not allowed on @Flag parameters", parameter);
+            return false;
+        }
+        if (kind == ParameterModel.Kind.FLAG && greedy != null) {
+            error("@Greedy is not allowed on @Flag parameters", parameter);
+            return false;
+        }
+        if (kind == ParameterModel.Kind.FLAG && flag.shorthand() != '\0' && !shorthandFlags.add(flag.shorthand())) {
+            error("Duplicate @Flag shorthand: " + flag.shorthand(), parameter);
+            return false;
+        }
+        if (optional != null
+                && kind == ParameterModel.Kind.ARGUMENT
+                && !SupportedCommandTypes.isBuiltInArgumentType(typeName)) {
+            error("@Optional is only supported for built-in argument types and string sequences", parameter);
+            return false;
+        }
+        if (optional != null
+                && kind == ParameterModel.Kind.ARGUMENT
+                && ("boolean".equals(typeName) || "java.lang.Boolean".equals(typeName))
+                && !optional.defaultValue().isEmpty()
+                && !"true".equals(optional.defaultValue())
+                && !"false".equals(optional.defaultValue())) {
+            error("@Optional defaultValue for boolean must be 'true' or 'false'", parameter);
+            return false;
+        }
+
+        var parameterName = parameterName(parameter, arg, flag, kind);
+        if (kind != ParameterModel.Kind.SENDER && !parameterNames.add(parameterName)) {
+            error("Duplicate parameter name: " + parameterName, parameter);
+            return false;
+        }
+
         if (greedy != null && !"java.lang.String".equals(typeName) && !stringSequence) {
             error("@Greedy is only supported for java.lang.String, String[], and List<String> arguments", parameter);
             return false;
@@ -155,8 +270,8 @@ public final class CommandModelReader {
             return false;
         }
 
-        var min = min(parameter);
-        var max = max(parameter);
+        var min = min(parameter, arg);
+        var max = max(parameter, arg);
         if (arg != null && (min != null || max != null) && !SupportedCommandTypes.isNumericType(typeName)) {
             warning("@Min, @Max and @Range are only applied to numeric arguments", parameter);
             min = null;
@@ -168,8 +283,24 @@ public final class CommandModelReader {
             return false;
         }
 
+        int minLength = arg == null ? 0 : arg.minLength();
+        int maxLength = arg == null ? Integer.MAX_VALUE : arg.maxLength();
+        if (minLength < 0 || maxLength < 0) {
+            error("@Arg minLength and maxLength must be >= 0", parameter);
+            return false;
+        }
+        if (minLength > maxLength) {
+            error("@Arg minLength must be <= maxLength", parameter);
+            return false;
+        }
+        if (arg != null && (minLength != 0 || maxLength != Integer.MAX_VALUE) && !"java.lang.String".equals(typeName)) {
+            warning("@Arg minLength and maxLength are only applied to java.lang.String arguments", parameter);
+            minLength = 0;
+            maxLength = Integer.MAX_VALUE;
+        }
+
         String suggestionMethodName = null;
-        if (arg != null && kind == ParameterModel.Kind.ARGUMENT) {
+        if (kind == ParameterModel.Kind.ARGUMENT) {
             var suggestionName = suggestionName(arg, suggestions, methodSuggestions);
             if (!suggestionName.isBlank()) {
                 suggestionMethodName = suggestionMethods.get(suggestionName);
@@ -180,18 +311,69 @@ public final class CommandModelReader {
             }
         }
 
+        if (optional != null && !validateDefaultValue(typeName, optional.defaultValue(), parameter)) {
+            return false;
+        }
+
         subcommand.addParameter(new ParameterModel(
                 parameterName(parameter, arg, flag, kind),
                 typeName,
                 kind,
-                optional != null || stringSequence,
+                optional != null,
                 optional == null ? null : optional.defaultValue(),
                 greedy != null || stringSequence,
                 min,
                 max,
+                minLength,
+                maxLength,
                 flag == null ? '\0' : flag.shorthand(),
                 suggestionMethodName));
         return true;
+    }
+
+    private boolean validateAliases(String name, String[] aliases, Element element) {
+        var seenAliases = new HashSet<String>();
+        for (String alias : aliases) {
+            if (alias.isBlank()) {
+                error("@Command aliases must not contain blank values", element);
+                return false;
+            }
+            if (alias.equals(name)) {
+                error("@Command alias must not be equal to the command name: " + alias, element);
+                return false;
+            }
+            if (!seenAliases.add(alias)) {
+                error("Duplicate @Command alias: " + alias, element);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isValidIntReturnType(javax.lang.model.type.TypeMirror returnType) {
+        return returnType.toString().equals("int") || returnType.toString().equals("java.lang.Integer");
+    }
+
+    private boolean validateDefaultValue(String typeName, String defaultValue, Element element) {
+        if (defaultValue == null || defaultValue.isBlank()) {
+            return true;
+        }
+        try {
+            switch (typeName) {
+                case "int", "java.lang.Integer" -> Integer.parseInt(defaultValue);
+                case "long", "java.lang.Long" -> Long.parseLong(defaultValue);
+                case "float", "java.lang.Float" -> Float.parseFloat(defaultValue);
+                case "double", "java.lang.Double" -> Double.parseDouble(defaultValue);
+                case "boolean", "java.lang.Boolean" -> Boolean.parseBoolean(defaultValue);
+                default -> {
+                    // String and custom types accept any literal value.
+                }
+            }
+            return true;
+        } catch (NumberFormatException exception) {
+            error("Invalid default value \"" + defaultValue + "\" for type " + typeName, element);
+            return false;
+        }
     }
 
     private Optional<ParameterModel.Kind> inferParameterKind(
@@ -230,7 +412,7 @@ public final class CommandModelReader {
         if (suggestions != null && !suggestions.value().isBlank()) {
             return suggestions.value();
         }
-        if (!arg.suggests().isBlank()) {
+        if (arg != null && !arg.suggests().isBlank()) {
             return arg.suggests();
         }
         return methodSuggestions == null ? "" : methodSuggestions.value();
@@ -262,22 +444,89 @@ public final class CommandModelReader {
         return true;
     }
 
-    private Double min(VariableElement parameter) {
+    private boolean validateFlagCount(SubcommandModel subcommand, Element element) {
+        long flagCount = subcommand.getParameters().stream()
+                .filter(parameter -> parameter.getKind() == ParameterModel.Kind.FLAG)
+                .count();
+        if (flagCount > MAX_FLAGS_PER_SUBCOMMAND) {
+            error("Subcommands support at most " + MAX_FLAGS_PER_SUBCOMMAND + " @Flag parameters", element);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validateOptionalArgumentPosition(SubcommandModel subcommand, Element element) {
+        var arguments = subcommand.getParameters().stream()
+                .filter(parameter -> parameter.getKind() == ParameterModel.Kind.ARGUMENT)
+                .toList();
+        for (int index = 0; index < arguments.size() - 1; index++) {
+            if (arguments.get(index).isOptional()) {
+                error("@Optional arguments must come after required arguments", element);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private Double min(VariableElement parameter, Arg arg) {
         var range = parameter.getAnnotation(Range.class);
         var min = parameter.getAnnotation(Min.class);
         if (min != null) {
             return min.value();
         }
-        return range == null ? null : range.min();
+        if (range != null) {
+            return range.min();
+        }
+        return arg == null || Double.isInfinite(arg.min()) ? null : arg.min();
     }
 
-    private Double max(VariableElement parameter) {
+    private Double max(VariableElement parameter, Arg arg) {
         var range = parameter.getAnnotation(Range.class);
         var max = parameter.getAnnotation(Max.class);
         if (max != null) {
             return max.value();
         }
-        return range == null ? null : range.max();
+        if (range != null) {
+            return range.max();
+        }
+        return arg == null || Double.isInfinite(arg.max()) ? null : arg.max();
+    }
+
+    private boolean hasCheckedExceptions(ExecutableElement method) {
+        var runtimeException = processingEnv.getElementUtils().getTypeElement("java.lang.RuntimeException");
+        var error = processingEnv.getElementUtils().getTypeElement("java.lang.Error");
+        if (runtimeException == null || error == null) {
+            return !method.getThrownTypes().isEmpty();
+        }
+        var runtimeType = runtimeException.asType();
+        var errorType = error.asType();
+        var typeUtils = processingEnv.getTypeUtils();
+        for (var thrownType : method.getThrownTypes()) {
+            if (!typeUtils.isSubtype(thrownType, runtimeType) && !typeUtils.isSubtype(thrownType, errorType)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isValidCommandName(String name) {
+        return name != null && !name.isBlank() && name.chars().allMatch(this::isValidCommandChar);
+    }
+
+    private boolean isValidCommandChar(int codePoint) {
+        return Character.isLetterOrDigit(codePoint) || codePoint == '_' || codePoint == '-';
+    }
+
+    private boolean isValidSubcommandPath(String path) {
+        if (path == null || path.isBlank()) {
+            return true;
+        }
+        for (String part : path.trim().split("\\s+")) {
+            if (!isValidCommandName(part)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void error(String message, Element element) {

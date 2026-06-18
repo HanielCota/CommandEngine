@@ -1,20 +1,21 @@
 package com.hanielfialho.runtime.internal.rate;
 
-import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
 import com.hanielfialho.api.command.CommandPath;
 import com.hanielfialho.api.rate.CommandRateLimiter;
 import com.hanielfialho.api.source.CommandSource;
 import com.hanielfialho.runtime.util.Preconditions;
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.jetbrains.annotations.NotNull;
 
 public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
 
-    private final Cache<Key, AtomicInteger> executions;
+    private final com.github.benmanes.caffeine.cache.Cache<Key, AtomicLong> executions;
     private final int maxExecutions;
+    private final long windowNanos;
 
     public CaffeineCommandRateLimiter(@NotNull Duration window, int maxExecutions, long maximumSize) {
         Preconditions.checkNotNull(window, "window");
@@ -28,8 +29,9 @@ public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
             throw new IllegalArgumentException("maximumSize must be positive");
         }
         this.maxExecutions = maxExecutions;
+        this.windowNanos = window.toNanos();
         this.executions = Caffeine.newBuilder()
-                .expireAfterWrite(window)
+                .expireAfter(new WindowExpiry<>(windowNanos))
                 .maximumSize(maximumSize)
                 .build();
     }
@@ -37,9 +39,40 @@ public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
     @Override
     public boolean tryAcquire(@NotNull CommandSource source, @NotNull CommandPath path) {
         var key = new Key(Objects.requireNonNull(source, "source").getName(), Objects.requireNonNull(path, "path"));
-        int current = executions.get(key, ignored -> new AtomicInteger()).incrementAndGet();
-        return current <= maxExecutions;
+        AtomicLong current = executions.asMap().compute(key, (ignored, existing) -> {
+            if (existing == null) {
+                return new AtomicLong(1);
+            }
+            existing.incrementAndGet();
+            return existing;
+        });
+        return current.get() <= maxExecutions;
     }
 
     private record Key(@NotNull String senderName, @NotNull CommandPath path) {}
+
+    private static final class WindowExpiry<K> implements Expiry<K, AtomicLong> {
+
+        private final long windowNanos;
+
+        private WindowExpiry(long windowNanos) {
+            this.windowNanos = windowNanos;
+        }
+
+        @Override
+        public long expireAfterCreate(@NotNull K key, @NotNull AtomicLong value, long currentTime) {
+            return windowNanos;
+        }
+
+        @Override
+        public long expireAfterUpdate(
+                @NotNull K key, @NotNull AtomicLong value, long currentTime, long currentDuration) {
+            return currentDuration;
+        }
+
+        @Override
+        public long expireAfterRead(@NotNull K key, @NotNull AtomicLong value, long currentTime, long currentDuration) {
+            return currentDuration;
+        }
+    }
 }

@@ -40,6 +40,21 @@ final class AdapterExecutionRenderer {
     private void renderExecuteMethod(StringBuilder code, SubcommandModel subcommand, int subIndex) {
         code.append("    private int execute").append(subIndex).append("(CommandContext<CommandSource> context) {\n");
         code.append("        CommandSource source = context.getSource();\n");
+
+        List<ParameterModel> parameters = subcommand.getParameters();
+        List<String> arguments = new ArrayList<>();
+        for (int index = 0; index < parameters.size(); index++) {
+            arguments.add("");
+        }
+        int senderIndex = 0;
+        for (int parameterIndex = 0; parameterIndex < parameters.size(); parameterIndex++) {
+            ParameterModel parameter = parameters.get(parameterIndex);
+            if (parameter.getKind() == ParameterModel.Kind.SENDER) {
+                arguments.set(parameterIndex, renderSenderParameter(code, parameter, senderIndex));
+                senderIndex++;
+            }
+        }
+
         code.append("        if (!rateLimiter.tryAcquire(source, COMMAND_PATH_")
                 .append(subIndex)
                 .append(")) {\n");
@@ -47,15 +62,24 @@ final class AdapterExecutionRenderer {
         code.append("            return 0;\n");
         code.append("        }\n");
 
-        List<String> arguments = new ArrayList<>();
-        int senderIndex = 0;
         int argumentIndex = 0;
         int flagIndex = 0;
-        for (ParameterModel parameter : subcommand.getParameters()) {
+        for (int parameterIndex = 0; parameterIndex < parameters.size(); parameterIndex++) {
+            ParameterModel parameter = parameters.get(parameterIndex);
             switch (parameter.getKind()) {
-                case SENDER -> senderIndex = renderSenderParameter(code, arguments, parameter, senderIndex);
-                case ARGUMENT -> argumentIndex = renderArgumentParameter(code, arguments, parameter, argumentIndex);
-                case FLAG -> flagIndex = renderFlagParameter(code, arguments, parameter, flagIndex);
+                case SENDER -> {}
+                case ARGUMENT -> {
+                    if (isCustomArgumentType(parameter)) {
+                        arguments.set(parameterIndex, renderCustomArgumentExpression(parameter));
+                    } else {
+                        arguments.set(parameterIndex, renderArgumentParameter(code, parameter, argumentIndex));
+                    }
+                    argumentIndex++;
+                }
+                case FLAG -> {
+                    arguments.set(parameterIndex, renderFlagParameter(code, parameter, flagIndex));
+                    flagIndex++;
+                }
             }
         }
 
@@ -71,8 +95,7 @@ final class AdapterExecutionRenderer {
         renderIntInvocation(code, invocation, subIndex);
     }
 
-    private int renderSenderParameter(
-            StringBuilder code, List<String> arguments, ParameterModel parameter, int senderIndex) {
+    private String renderSenderParameter(StringBuilder code, ParameterModel parameter, int senderIndex) {
         String variable = "sender" + senderIndex;
         if ("com.hanielfialho.api.source.CommandSource".equals(parameter.getTypeName())) {
             code.append("        ")
@@ -91,12 +114,10 @@ final class AdapterExecutionRenderer {
             code.append("            return 0;\n");
             code.append("        }\n");
         }
-        arguments.add(variable);
-        return senderIndex + 1;
+        return variable;
     }
 
-    private int renderArgumentParameter(
-            StringBuilder code, List<String> arguments, ParameterModel parameter, int argumentIndex) {
+    private String renderArgumentParameter(StringBuilder code, ParameterModel parameter, int argumentIndex) {
         String variable = "arg" + argumentIndex;
         code.append("        ")
                 .append(parameter.getTypeName())
@@ -105,12 +126,11 @@ final class AdapterExecutionRenderer {
                 .append(" = ")
                 .append(argumentValueExpression(parameter))
                 .append(";\n");
-        arguments.add(variable);
-        return argumentIndex + 1;
+        renderStringLengthValidation(code, parameter, variable);
+        return variable;
     }
 
-    private int renderFlagParameter(
-            StringBuilder code, List<String> arguments, ParameterModel parameter, int flagIndex) {
+    private String renderFlagParameter(StringBuilder code, ParameterModel parameter, int flagIndex) {
         String variable = "flag" + flagIndex;
         code.append("        boolean ")
                 .append(variable)
@@ -119,8 +139,58 @@ final class AdapterExecutionRenderer {
                 .append("\", '")
                 .append(AdapterRenderingSupport.escapeChar(parameter.getShorthand()))
                 .append("');\n");
-        arguments.add(variable);
-        return flagIndex + 1;
+        return variable;
+    }
+
+    private boolean isCustomArgumentType(ParameterModel parameter) {
+        return switch (parameter.getTypeName()) {
+            case "java.lang.String",
+                    "java.lang.String[]",
+                    "java.util.List<java.lang.String>",
+                    "int",
+                    "java.lang.Integer",
+                    "long",
+                    "java.lang.Long",
+                    "float",
+                    "java.lang.Float",
+                    "double",
+                    "java.lang.Double",
+                    "boolean",
+                    "java.lang.Boolean" -> false;
+            default -> true;
+        };
+    }
+
+    private String renderCustomArgumentExpression(ParameterModel parameter) {
+        String argumentName = "\"" + AdapterRenderingSupport.escape(parameter.getName()) + "\"";
+        String resolve = "resolveArgument(context, "
+                + argumentName
+                + ", "
+                + AdapterRenderingSupport.classLiteral(parameter.getTypeName())
+                + ")";
+        if (!parameter.isOptional()) {
+            return resolve;
+        }
+        return "hasArgument(context, " + argumentName + ") ? " + resolve + " : " + defaultValueExpression(parameter);
+    }
+
+    private void renderStringLengthValidation(StringBuilder code, ParameterModel parameter, String variable) {
+        if (!"java.lang.String".equals(parameter.getTypeName())
+                || (parameter.getMinLength() == 0 && parameter.getMaxLength() == Integer.MAX_VALUE)) {
+            return;
+        }
+        code.append("        if (")
+                .append(variable)
+                .append(".length() < ")
+                .append(parameter.getMinLength())
+                .append(" || ")
+                .append(variable)
+                .append(".length() > ")
+                .append(parameter.getMaxLength())
+                .append(") {\n");
+        code.append("            scheduler.execute(() -> source.sendMessage(messages.invalidSyntax()));\n");
+        code.append("            return 0;\n");
+        code.append("        }\n");
     }
 
     private void renderAsyncInvocation(StringBuilder code, String invocation, int subIndex) {
@@ -145,23 +215,17 @@ final class AdapterExecutionRenderer {
     }
 
     private void renderIntInvocation(StringBuilder code, String invocation, int subIndex) {
-        code.append("        long started = System.nanoTime();\n");
-        code.append("        try {\n");
-        code.append("            int result = ").append(invocation).append(";\n");
-        code.append("            telemetry.recordExecution(COMMAND_PATH_")
+        code.append("        final int[] result = new int[1];\n");
+        code.append("        CommandResult commandResult = executor.executeSync(source, COMMAND_PATH_")
                 .append(subIndex)
-                .append(", System.nanoTime() - started, false);\n");
-        code.append("            return result;\n");
-        code.append("        } catch (RuntimeException exception) {\n");
-        code.append("            telemetry.recordExecution(COMMAND_PATH_")
-                .append(subIndex)
-                .append(", System.nanoTime() - started, false);\n");
-        code.append("            telemetry.recordFailure(COMMAND_PATH_")
-                .append(subIndex)
-                .append(", FailureReason.EXCEPTION.name(), exception);\n");
+                .append(", () -> result[0] = ")
+                .append(invocation)
+                .append(");\n");
+        code.append("        if (commandResult instanceof CommandResult.Success) {\n");
         code.append(
-                "            return toBrigadierResult(source, CommandResult.failure(FailureReason.EXCEPTION, messages.internalError()), scheduler);\n");
+                "            commandResult = result[0] < 0 ? CommandResult.failure(FailureReason.EXCEPTION, messages.internalError()) : CommandResult.success(result[0]);\n");
         code.append("        }\n");
+        code.append("        return toBrigadierResult(source, commandResult, scheduler);\n");
         code.append("    }\n\n");
     }
 
@@ -253,7 +317,8 @@ final class AdapterExecutionRenderer {
     private String extractionExpression(ParameterModel parameter) {
         String argumentName = "\"" + AdapterRenderingSupport.escape(parameter.getName()) + "\"";
         return switch (parameter.getTypeName()) {
-            case "java.lang.String" -> "StringArgumentType.getString(context, " + argumentName + ")";
+            case "java.lang.String" ->
+                "stripFormattingCodes(StringArgumentType.getString(context, " + argumentName + "))";
             case "java.lang.String[]" ->
                 "splitArguments(StringArgumentType.getString(context, " + argumentName + ")).toArray(String[]::new)";
             case "java.util.List<java.lang.String>" ->

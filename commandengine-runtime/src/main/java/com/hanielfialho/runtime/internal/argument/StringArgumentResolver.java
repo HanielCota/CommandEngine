@@ -24,4 +24,9 @@ public class StringArgumentResolver implements ArgumentTypeResolver<String> {
         Objects.requireNonNull(context, "context");
         return StringArgumentType.getString(context, Objects.requireNonNull(name, "name"));
     }
+
+    @Override
+    public boolean supportsDefault() {
+        return true;
+    }
 }

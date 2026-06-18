@@ -24,4 +24,9 @@ public final class LongArgumentResolver implements ArgumentTypeResolver<Long> {
         Objects.requireNonNull(context, "context");
         return LongArgumentType.getLong(context, Objects.requireNonNull(name, "name"));
     }
+
+    @Override
+    public boolean supportsDefault() {
+        return true;
+    }
 }

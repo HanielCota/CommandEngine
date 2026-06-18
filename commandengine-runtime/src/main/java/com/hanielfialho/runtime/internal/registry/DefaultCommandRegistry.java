@@ -17,11 +17,6 @@ public final class DefaultCommandRegistry implements CommandRegistry {
     private final Map<Object, Set<String>> ownerIndex = new ConcurrentHashMap<>();
 
     @Override
-    public void register(@NotNull CommandAdapter adapter) {
-        register(this, adapter);
-    }
-
-    @Override
     public void register(@NotNull Object owner, @NotNull CommandAdapter adapter) {
         Preconditions.checkNotNull(owner, "owner");
         Preconditions.checkNotNull(adapter, "adapter");

@@ -6,6 +6,9 @@ import com.hanielfialho.api.result.CommandResult;
 import com.hanielfialho.api.source.CommandSource;
 import com.hanielfialho.runtime.internal.executor.SyncExecutor;
 import com.hanielfialho.runtime.internal.executor.VirtualThreadExecutor;
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 final class CommandExecutorSecurityTest {
@@ -37,6 +40,58 @@ final class CommandExecutorSecurityTest {
                 assertThat(failure.message()).isEqualTo(INTERNAL_ERROR_MESSAGE);
                 assertThat(failure.message()).doesNotContain("secret-token");
             });
+        }
+    }
+
+    @Test
+    void syncExecutorHandlesErrorWithoutExposingMessage() {
+        var executor = new SyncExecutor();
+
+        CommandResult result = executor.executeSync(new TestSource(), () -> {
+            throw new AssertionError("secret-token");
+        });
+
+        assertThat(result).isInstanceOfSatisfying(CommandResult.Failure.class, failure -> {
+            assertThat(failure.message()).isEqualTo(INTERNAL_ERROR_MESSAGE);
+            assertThat(failure.message()).doesNotContain("secret-token");
+        });
+    }
+
+    @Test
+    void virtualThreadExecutorHandlesErrorWithoutExposingMessage() {
+        try (var executor = new VirtualThreadExecutor()) {
+            CommandResult result = executor.executeSync(new TestSource(), () -> {
+                throw new AssertionError("secret-token");
+            });
+
+            assertThat(result).isInstanceOfSatisfying(CommandResult.Failure.class, failure -> {
+                assertThat(failure.message()).isEqualTo(INTERNAL_ERROR_MESSAGE);
+                assertThat(failure.message()).doesNotContain("secret-token");
+            });
+        }
+    }
+
+    @Test
+    void virtualThreadExecutorCancelsTimedOutTask() throws Exception {
+        try (var executor = new VirtualThreadExecutor(
+                com.hanielfialho.api.message.CommandMessages.defaults(), Duration.ofMillis(50))) {
+            var started = new CountDownLatch(1);
+            var interrupted = new CountDownLatch(1);
+
+            CommandResult result = executor.executeAsync(new TestSource(), () -> {
+                        started.countDown();
+                        try {
+                            Thread.sleep(TimeUnit.SECONDS.toMillis(10));
+                        } catch (InterruptedException exception) {
+                            interrupted.countDown();
+                            Thread.currentThread().interrupt();
+                        }
+                    })
+                    .get(1, TimeUnit.SECONDS);
+
+            assertThat(started.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(result).isInstanceOf(CommandResult.Failure.class);
+            assertThat(interrupted.await(1, TimeUnit.SECONDS)).isTrue();
         }
     }
 

@@ -24,4 +24,9 @@ public final class IntegerArgumentResolver implements ArgumentTypeResolver<Integ
         Objects.requireNonNull(context, "context");
         return IntegerArgumentType.getInteger(context, Objects.requireNonNull(name, "name"));
     }
+
+    @Override
+    public boolean supportsDefault() {
+        return true;
+    }
 }

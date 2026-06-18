@@ -59,6 +59,7 @@ public final class PaperCommandEngineConfigLoader {
     }
 
     private static String string(FileConfiguration config, String path, String defaults) {
-        return Objects.requireNonNull(config.getString(PREFIX + path, defaults), path);
+        var value = config.getString(PREFIX + path);
+        return value == null ? defaults : value;
     }
 }

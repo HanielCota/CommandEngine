@@ -10,15 +10,21 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import java.lang.reflect.Field;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
+import org.bukkit.command.PluginIdentifiableCommand;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -86,6 +92,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
             return node;
         }
 
+        removeClaimedPluginCommands(metadata);
         Command command = new PaperBridgeCommand(metadata, dispatcher, logger(), messages);
         commandMap.register(plugin.getName().toLowerCase(), command);
         registeredCommands.put(metadata.name(), command);
@@ -96,7 +103,22 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
     public void unregister(@NotNull String name) {
         Preconditions.checkNotNull(name, "name");
         removeRootNode(name);
-        Command command = registeredCommands.remove(name);
+        Command command = registeredCommands.get(name);
+        if (command == null) {
+            String normalized = normalize(name);
+            for (Map.Entry<String, Command> entry : registeredCommands.entrySet()) {
+                if (normalize(entry.getValue().getName()).equals(normalized)) {
+                    command = entry.getValue();
+                    break;
+                }
+                List<String> aliases = entry.getValue().getAliases();
+                if (aliases != null && aliases.stream().map(this::normalize).anyMatch(normalized::equals)) {
+                    command = entry.getValue();
+                    break;
+                }
+            }
+        }
+        registeredCommands.remove(name);
         if (command == null || commandMap == null) {
             return;
         }
@@ -105,8 +127,20 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
     }
 
     public void unregisterAll() {
+        RuntimeException failure = null;
         for (String name : List.copyOf(registeredCommands.keySet())) {
-            unregister(name);
+            try {
+                unregister(name);
+            } catch (RuntimeException exception) {
+                if (failure == null) {
+                    failure = exception;
+                } else {
+                    failure.addSuppressed(exception);
+                }
+            }
+        }
+        if (failure != null) {
+            throw failure;
         }
     }
 
@@ -131,9 +165,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
     @SuppressWarnings("unchecked")
     private void removeCommandMapEntries(Command command) {
         try {
-            Field knownCommandsField = findField(commandMap.getClass(), "knownCommands");
-            knownCommandsField.setAccessible(true);
-            Map<String, Command> knownCommands = (Map<String, Command>) knownCommandsField.get(commandMap);
+            Map<String, Command> knownCommands = knownCommands();
             for (Iterator<Map.Entry<String, Command>> iterator =
                             knownCommands.entrySet().iterator();
                     iterator.hasNext(); ) {
@@ -144,6 +176,74 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         } catch (ReflectiveOperationException exception) {
             log(() -> "Unable to remove command map entries for " + command.getName(), exception);
         }
+    }
+
+    private void removeClaimedPluginCommands(CommandMetadata metadata) {
+        try {
+            Map<String, Command> knownCommands = knownCommands();
+            Set<String> labels = commandLabels(metadata);
+            Set<Command> claimedCommands = Collections.newSetFromMap(new IdentityHashMap<>());
+            for (Command command : knownCommands.values()) {
+                if (isOwnedByPlugin(command) && usesAnyLabel(command, labels)) {
+                    claimedCommands.add(command);
+                }
+            }
+            if (claimedCommands.isEmpty()) {
+                return;
+            }
+            for (Command claimed : claimedCommands) {
+                claimed.unregister(commandMap);
+            }
+            for (Iterator<Map.Entry<String, Command>> iterator =
+                            knownCommands.entrySet().iterator();
+                    iterator.hasNext(); ) {
+                if (claimedCommands.contains(iterator.next().getValue())) {
+                    iterator.remove();
+                }
+            }
+        } catch (ReflectiveOperationException exception) {
+            log(() -> "Unable to claim Bukkit command map entries for " + metadata.name(), exception);
+        }
+    }
+
+    private boolean isOwnedByPlugin(Command command) {
+        return command instanceof PluginIdentifiableCommand identifiable && identifiable.getPlugin() == plugin;
+    }
+
+    private boolean usesAnyLabel(Command command, Set<String> labels) {
+        if (labels.contains(normalize(command.getName()))) {
+            return true;
+        }
+        List<String> aliases = command.getAliases();
+        if (aliases == null) {
+            return false;
+        }
+        for (String alias : aliases) {
+            if (labels.contains(normalize(alias))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Set<String> commandLabels(CommandMetadata metadata) {
+        Set<String> labels = new HashSet<>();
+        labels.add(normalize(metadata.name()));
+        for (String alias : metadata.aliases()) {
+            labels.add(normalize(alias));
+        }
+        return labels;
+    }
+
+    private String normalize(String label) {
+        return label.toLowerCase(Locale.ROOT);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Command> knownCommands() throws ReflectiveOperationException {
+        Field knownCommandsField = findField(commandMap.getClass(), "knownCommands");
+        knownCommandsField.setAccessible(true);
+        return (Map<String, Command>) knownCommandsField.get(commandMap);
     }
 
     private Field findField(Class<?> type, String name) throws NoSuchFieldException {

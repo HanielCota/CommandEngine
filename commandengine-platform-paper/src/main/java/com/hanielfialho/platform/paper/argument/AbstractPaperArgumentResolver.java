@@ -44,6 +44,11 @@ abstract class AbstractPaperArgumentResolver<T> implements ArgumentTypeResolver<
         return resolveRaw(Objects.requireNonNull(input, "input"));
     }
 
+    @Override
+    public boolean supportsDefault() {
+        return true;
+    }
+
     private @NotNull T resolveRaw(String raw) {
         var resolved = lookup.apply(raw);
         if (resolved == null) {

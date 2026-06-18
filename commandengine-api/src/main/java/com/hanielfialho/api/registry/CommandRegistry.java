@@ -9,10 +9,16 @@ import org.jetbrains.annotations.NotNull;
  */
 public interface CommandRegistry {
 
-    void register(@NotNull CommandAdapter adapter);
+    /**
+     * Registers an adapter scoped to the given owner.
+     */
+    void register(@NotNull Object owner, @NotNull CommandAdapter adapter);
 
-    default void register(@NotNull Object owner, @NotNull CommandAdapter adapter) {
-        register(adapter);
+    /**
+     * Registers an adapter using the registry itself as owner.
+     */
+    default void register(@NotNull CommandAdapter adapter) {
+        register(this, adapter);
     }
 
     void unregister(@NotNull CommandAdapter adapter);

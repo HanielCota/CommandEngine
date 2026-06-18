@@ -24,4 +24,9 @@ public final class BooleanArgumentResolver implements ArgumentTypeResolver<Boole
         Objects.requireNonNull(context, "context");
         return BoolArgumentType.getBool(context, Objects.requireNonNull(name, "name"));
     }
+
+    @Override
+    public boolean supportsDefault() {
+        return true;
+    }
 }

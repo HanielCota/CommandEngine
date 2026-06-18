@@ -12,6 +12,8 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.bukkit.command.Command;
@@ -52,7 +54,8 @@ public final class PaperBridgeCommand extends Command {
             sender.sendMessage(messages.invalidSyntax());
             return false;
         } catch (RuntimeException exception) {
-            logger.log(Level.WARNING, exception, () -> "Command execution failed for /" + commandLabel);
+            logger.log(Level.WARNING, "Command execution failed for /" + commandLabel);
+            logger.log(Level.FINE, exception, () -> "Command execution failed for /" + commandLabel);
             sender.sendMessage(messages.internalError());
             return true;
         }
@@ -65,9 +68,18 @@ public final class PaperBridgeCommand extends Command {
         CommandSource source = new PaperCommandSource(sender);
         ParseResults<CommandSource> parse = dispatcher.parse(commandLine(alias, args), source);
         try {
-            Suggestions suggestions = dispatcher.getCompletionSuggestions(parse).join();
+            Suggestions suggestions = dispatcher.getCompletionSuggestions(parse).get(5, TimeUnit.SECONDS);
             return suggestions.getList().stream().map(Suggestion::getText).toList();
         } catch (CompletionException exception) {
+            logger.log(Level.FINE, exception, () -> "Command completion failed for /" + alias);
+            return List.of();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return List.of();
+        } catch (TimeoutException exception) {
+            logger.log(Level.FINE, exception, () -> "Command completion timed out for /" + alias);
+            return List.of();
+        } catch (Exception exception) {
             logger.log(Level.FINE, exception, () -> "Command completion failed for /" + alias);
             return List.of();
         }

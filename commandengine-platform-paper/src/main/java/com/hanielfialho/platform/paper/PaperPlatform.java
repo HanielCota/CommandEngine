@@ -109,21 +109,48 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
     }
 
     public void unregisterAll() {
+        RuntimeException failure = null;
         for (CommandAdapter adapter : List.copyOf(registry.getAdapters())) {
-            adapter.unregister(brigadier);
+            try {
+                adapter.unregister(brigadier);
+            } catch (RuntimeException exception) {
+                failure = addSuppressed(failure, exception);
+            }
+            try {
+                registry.unregister(adapter);
+            } catch (RuntimeException exception) {
+                failure = addSuppressed(failure, exception);
+            }
         }
-        registry.unregisterAll(plugin);
-        brigadier.unregisterAll();
+        try {
+            brigadier.unregisterAll();
+        } catch (RuntimeException exception) {
+            failure = addSuppressed(failure, exception);
+        }
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    private static RuntimeException addSuppressed(RuntimeException failure, RuntimeException exception) {
+        if (failure == null) {
+            return exception;
+        }
+        failure.addSuppressed(exception);
+        return failure;
     }
 
     @Override
     public void close() {
-        unregisterAll();
-        if (executor instanceof AutoCloseable closeable) {
-            try {
-                closeable.close();
-            } catch (Exception exception) {
-                throw new IllegalStateException("Failed to close command executor", exception);
+        try {
+            unregisterAll();
+        } finally {
+            if (executor instanceof AutoCloseable closeable) {
+                try {
+                    closeable.close();
+                } catch (Exception exception) {
+                    throw new IllegalStateException("Failed to close command executor", exception);
+                }
             }
         }
     }

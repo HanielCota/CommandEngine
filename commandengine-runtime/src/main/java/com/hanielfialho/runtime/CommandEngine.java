@@ -23,12 +23,16 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.concurrent.ConcurrentHashMap;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Public facade used to register command instances through generated adapters.
  */
 public final class CommandEngine implements AutoCloseable {
+
+    private static final Map<ClassLoader, List<CommandAdapterFactory>> FACTORIES_BY_CLASSLOADER =
+            new ConcurrentHashMap<>();
 
     private final CommandRegistry registry;
     private final BrigadierAdapter brigadier;
@@ -112,12 +116,25 @@ public final class CommandEngine implements AutoCloseable {
         Preconditions.checkNotNull(commandInstance, "commandInstance");
         CommandAdapter adapter = instantiateAdapter(commandInstance);
         synchronized (adaptersByInstance) {
-            var existing = adaptersByInstance.remove(commandInstance);
+            var existing = adaptersByInstance.get(commandInstance);
             if (existing != null) {
                 unregister(existing);
             }
-            register(adapter);
-            adaptersByInstance.put(commandInstance, adapter);
+            try {
+                register(adapter);
+                adaptersByInstance.put(commandInstance, adapter);
+            } catch (RuntimeException exception) {
+                adaptersByInstance.remove(commandInstance);
+                if (existing != null) {
+                    try {
+                        register(existing);
+                        adaptersByInstance.put(commandInstance, existing);
+                    } catch (RuntimeException restoreException) {
+                        exception.addSuppressed(restoreException);
+                    }
+                }
+                throw exception;
+            }
         }
         return this;
     }
@@ -128,6 +145,11 @@ public final class CommandEngine implements AutoCloseable {
         try {
             adapter.register(brigadier);
         } catch (RuntimeException exception) {
+            try {
+                adapter.unregister(brigadier);
+            } catch (RuntimeException cleanupException) {
+                exception.addSuppressed(cleanupException);
+            }
             registry.unregister(adapter);
             throw exception;
         }
@@ -136,15 +158,14 @@ public final class CommandEngine implements AutoCloseable {
 
     public @NotNull CommandEngine unregister(@NotNull Object commandInstance) {
         Preconditions.checkNotNull(commandInstance, "commandInstance");
-        CommandAdapter adapter;
         synchronized (adaptersByInstance) {
-            adapter = adaptersByInstance.remove(commandInstance);
+            CommandAdapter adapter = adaptersByInstance.remove(commandInstance);
+            if (adapter == null) {
+                throw new IllegalArgumentException("Command instance is not registered: "
+                        + commandInstance.getClass().getName());
+            }
+            return unregister(adapter);
         }
-        if (adapter == null) {
-            throw new IllegalArgumentException("Command instance is not registered: "
-                    + commandInstance.getClass().getName());
-        }
-        return unregister(adapter);
     }
 
     public @NotNull CommandEngine unregister(@NotNull CommandAdapter adapter) {
@@ -158,12 +179,31 @@ public final class CommandEngine implements AutoCloseable {
     }
 
     public void unregisterAll() {
-        for (var adapter : List.copyOf(registry.getAdapters())) {
-            adapter.unregister(brigadier);
+        List<CommandAdapter> adapters;
+        synchronized (adaptersByInstance) {
+            adapters = List.copyOf(registry.getAdapters());
         }
-        registry.unregisterAll(owner);
+
+        RuntimeException failure = null;
+        for (var adapter : adapters) {
+            try {
+                adapter.unregister(brigadier);
+            } catch (RuntimeException exception) {
+                failure = addSuppressed(failure, exception);
+            }
+            try {
+                registry.unregister(adapter);
+            } catch (RuntimeException exception) {
+                failure = addSuppressed(failure, exception);
+            }
+        }
+
         synchronized (adaptersByInstance) {
             adaptersByInstance.clear();
+        }
+
+        if (failure != null) {
+            throw failure;
         }
     }
 
@@ -177,9 +217,12 @@ public final class CommandEngine implements AutoCloseable {
 
     private CommandAdapter instantiateAdapter(Object commandInstance) {
         Preconditions.checkNotNull(commandInstance, "commandInstance");
-        var loader = ServiceLoader.load(
-                CommandAdapterFactory.class, commandInstance.getClass().getClassLoader());
-        for (var factory : loader) {
+        var classLoader = commandInstance.getClass().getClassLoader();
+        var factories = FACTORIES_BY_CLASSLOADER.computeIfAbsent(
+                classLoader, loader -> ServiceLoader.load(CommandAdapterFactory.class, loader).stream()
+                        .map(ServiceLoader.Provider::get)
+                        .toList());
+        for (var factory : factories) {
             if (factory.supports(commandInstance)) {
                 return factory.createAdapter(
                         commandInstance, executor, argumentResolvers, scheduler, messages, telemetry, rateLimiter);
@@ -191,14 +234,25 @@ public final class CommandEngine implements AutoCloseable {
                 + ". Ensure the class is annotated with @Command and compiled with CommandEngineProcessor.");
     }
 
+    private static RuntimeException addSuppressed(RuntimeException failure, RuntimeException exception) {
+        if (failure == null) {
+            return exception;
+        }
+        failure.addSuppressed(exception);
+        return failure;
+    }
+
     @Override
     public void close() {
-        unregisterAll();
-        if (executor instanceof AutoCloseable closeable) {
-            try {
-                closeable.close();
-            } catch (Exception exception) {
-                throw new IllegalStateException("Failed to close command executor", exception);
+        try {
+            unregisterAll();
+        } finally {
+            if (executor instanceof AutoCloseable closeable) {
+                try {
+                    closeable.close();
+                } catch (Exception exception) {
+                    throw new IllegalStateException("Failed to close command executor", exception);
+                }
             }
         }
     }
@@ -250,6 +304,7 @@ public final class CommandEngine implements AutoCloseable {
         private CommandMessages messages = CommandMessages.defaults();
         private Duration asyncTimeout = Duration.ofSeconds(30);
         private CommandExecutor executor = new VirtualThreadExecutor(messages);
+        private boolean customExecutor;
         private ArgumentResolverRegistry argumentResolvers = new DefaultArgumentResolverRegistry();
         private CommandScheduler scheduler = CommandScheduler.DIRECT;
         private CommandTelemetry telemetry = CommandTelemetry.NOOP;
@@ -270,6 +325,7 @@ public final class CommandEngine implements AutoCloseable {
 
         public @NotNull Builder executor(@NotNull CommandExecutor executor) {
             this.executor = Preconditions.checkNotNull(executor, "executor");
+            this.customExecutor = true;
             return this;
         }
 
@@ -280,7 +336,7 @@ public final class CommandEngine implements AutoCloseable {
 
         public @NotNull Builder messages(@NotNull CommandMessages messages) {
             this.messages = Preconditions.checkNotNull(messages, "messages");
-            if (executor instanceof VirtualThreadExecutor) {
+            if (!customExecutor && executor instanceof VirtualThreadExecutor) {
                 this.executor = new VirtualThreadExecutor(messages, asyncTimeout);
             }
             return this;
@@ -292,7 +348,7 @@ public final class CommandEngine implements AutoCloseable {
                 throw new IllegalArgumentException("asyncTimeout must be positive");
             }
             this.asyncTimeout = asyncTimeout;
-            if (executor instanceof VirtualThreadExecutor) {
+            if (!customExecutor && executor instanceof VirtualThreadExecutor) {
                 this.executor = new VirtualThreadExecutor(messages, asyncTimeout);
             }
             return this;

@@ -21,4 +21,11 @@ public interface ArgumentTypeResolver<T> {
     default @NotNull T resolveDefault(@NotNull CommandContext<?> context, @NotNull String input) {
         throw new UnsupportedOperationException("Default values are not supported by " + type().getName());
     }
+
+    /**
+     * Returns whether this resolver supports {@link #resolveDefault}.
+     */
+    default boolean supportsDefault() {
+        return false;
+    }
 }

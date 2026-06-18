@@ -28,7 +28,7 @@ public final class TelemetryCommandExecutor implements CommandExecutor, AutoClos
     public @NotNull CommandResult executeSync(
             @NotNull CommandSource source, @NotNull CommandPath path, @NotNull Runnable command) {
         long started = System.nanoTime();
-        CommandResult result = delegate.executeSync(source, command);
+        CommandResult result = delegate.executeSync(source, path, command);
         record(path, result, started, false);
         return result;
     }
@@ -43,7 +43,7 @@ public final class TelemetryCommandExecutor implements CommandExecutor, AutoClos
     public @NotNull CompletableFuture<CommandResult> executeAsync(
             @NotNull CommandSource source, @NotNull CommandPath path, @NotNull Runnable command) {
         long started = System.nanoTime();
-        return delegate.executeAsync(source, command).whenComplete((result, throwable) -> {
+        return delegate.executeAsync(source, path, command).whenComplete((result, throwable) -> {
             if (throwable != null) {
                 telemetry.recordFailure(path, "EXCEPTION", throwable);
                 return;

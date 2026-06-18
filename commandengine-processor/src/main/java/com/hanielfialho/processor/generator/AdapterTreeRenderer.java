@@ -28,13 +28,13 @@ final class AdapterTreeRenderer {
         code.append("    public void register(BrigadierAdapter brigadier) {\n");
         code.append("        Objects.requireNonNull(brigadier, \"brigadier\");\n");
         code.append("        registeredNames.clear();\n");
+        code.append("        registeredNames.add(\"")
+                .append(AdapterRenderingSupport.escape(model.getName()))
+                .append("\");\n");
         code.append("        LiteralCommandNode<CommandSource> root = createTree(\"")
                 .append(AdapterRenderingSupport.escape(model.getName()))
                 .append("\").build();\n");
         code.append("        brigadier.register(root, metadata());\n");
-        code.append("        registeredNames.add(\"")
-                .append(AdapterRenderingSupport.escape(model.getName()))
-                .append("\");\n");
         renderAliasRegistrations(code);
         code.append("    }\n\n");
 
@@ -56,32 +56,15 @@ final class AdapterTreeRenderer {
     }
 
     private void renderAliasRegistration(StringBuilder code, String alias, int aliasIndex) {
-        code.append("        LiteralArgumentBuilder<CommandSource> aliasBuilder")
-                .append(aliasIndex)
-                .append(" = LiteralArgumentBuilder.<CommandSource>literal(\"")
-                .append(AdapterRenderingSupport.escape(alias))
-                .append("\")");
-        if (!model.getPermission().isEmpty()) {
-            code.append("\n            .requires(source -> source.hasPermission(\"")
-                    .append(AdapterRenderingSupport.escape(model.getPermission()))
-                    .append("\"))");
-        }
-        code.append(";\n");
-        code.append("        if (root.getCommand() != null) {\n");
-        code.append("            aliasBuilder").append(aliasIndex).append(".executes(root.getCommand());\n");
-        code.append("        }\n");
         code.append("        LiteralCommandNode<CommandSource> alias")
                 .append(aliasIndex)
-                .append(" = aliasBuilder")
-                .append(aliasIndex)
-                .append(".build();\n");
-        code.append("        for (CommandNode<CommandSource> child : root.getChildren()) {\n");
-        code.append("            alias").append(aliasIndex).append(".addChild(child);\n");
-        code.append("        }\n");
-        code.append("        brigadier.register(alias").append(aliasIndex).append(", metadata());\n");
+                .append(" = createTree(\"")
+                .append(AdapterRenderingSupport.escape(alias))
+                .append("\").build();\n");
         code.append("        registeredNames.add(\"")
                 .append(AdapterRenderingSupport.escape(alias))
                 .append("\");\n");
+        code.append("        brigadier.register(alias").append(aliasIndex).append(", metadata());\n");
     }
 
     private void renderCreateTree(StringBuilder code) {

@@ -113,6 +113,23 @@ public final class WarpCommand {
 O processor gera um adapter e uma factory em tempo de compilação. O runtime localiza a factory com `ServiceLoader`,
 então não há reflection no hot path.
 
+### JPMS / `module-info.java`
+
+Se o módulo dos seus comandos declarar um `module-info.java`, o adapter factory gerado deve ser exposto via
+`provides`:
+
+```java
+module com.example.myplugin {
+    requires com.hanielfialho.api;
+    requires com.hanielfialho.runtime;
+
+    provides com.hanielfialho.api.command.CommandAdapterFactory
+        with com.example.WarpCommandCommandAdapterFactory;
+}
+```
+
+Sem essa declaração, `CommandEngine.register(...)` não encontrará o adapter factory em runtime.
+
 ## Registro no Runtime
 
 ```java
@@ -210,6 +227,8 @@ Comandos do exemplo:
 - `@Flag` com forma longa e shorthand.
 - `@Greedy` para textos com espaços.
 - `@Range`, `@Min` e `@Max` para validação numérica nativa.
+- `@Optional` para argumentos com valor padrão. Tipos customizados precisam de um `ArgumentTypeResolver` que implemente
+  `resolveDefault` e declare `supportsDefault() = true`.
 - `@Suggestions` e `@SuggestionProvider` para tab-complete.
 - Handlers `void` executam de forma assíncrona com executor baseado em virtual threads por padrão.
 - Use `@Execute(async = false)` quando um handler `void` precisar ficar síncrono.
@@ -226,6 +245,7 @@ real:
 ```java
 var harness = com.hanielfialho.test.engine.TestEngine.harness();
 var source = new com.hanielfialho.test.source.MockCommandSource("tester");
+// Deprecated aliases also exist under com.hanielfialho.test.* for compatibility.
 source.addPermission("warp.use");
 
 harness.engine().register(new WarpCommand());

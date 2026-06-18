@@ -18,7 +18,12 @@ public final class LocationArgumentResolver implements ArgumentTypeResolver<Loca
     private static final double MAX_COORDINATE = 30_000_000D;
 
     private static double parseCoordinate(String value) {
-        double coordinate = Double.parseDouble(value.trim());
+        double coordinate;
+        try {
+            coordinate = Double.parseDouble(value.trim());
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Location coordinate must be a number", exception);
+        }
         if (!Double.isFinite(coordinate) || coordinate < MIN_COORDINATE || coordinate > MAX_COORDINATE) {
             throw new IllegalArgumentException("Location coordinate is outside the supported world bounds");
         }
@@ -39,7 +44,7 @@ public final class LocationArgumentResolver implements ArgumentTypeResolver<Loca
 
     @Override
     public @NotNull ArgumentType<?> argumentType() {
-        return StringArgumentType.word();
+        return StringArgumentType.greedyString();
     }
 
     @Override
@@ -53,6 +58,11 @@ public final class LocationArgumentResolver implements ArgumentTypeResolver<Loca
     public @NotNull Location resolveDefault(@NotNull CommandContext<?> context, @NotNull String input) {
         Objects.requireNonNull(context, "context");
         return resolveRaw(context, Objects.requireNonNull(input, "input"));
+    }
+
+    @Override
+    public boolean supportsDefault() {
+        return true;
     }
 
     private @NotNull Location resolveRaw(CommandContext<?> context, String raw) {

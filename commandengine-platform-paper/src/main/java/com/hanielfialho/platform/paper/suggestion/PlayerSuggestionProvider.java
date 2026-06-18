@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
 public final class PlayerSuggestionProvider extends CachedSuggestionProvider {
 
     public PlayerSuggestionProvider() {
-        super(Duration.ofMillis(500));
+        super(Duration.ofMillis(500), 16, Bukkit::isPrimaryThread);
     }
 
     @Override

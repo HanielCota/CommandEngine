@@ -21,6 +21,7 @@ public final class ExampleWarpCommand {
         source.sendMessage("Pong from CommandEngine.");
     }
 
+    @Execute(async = false)
     @Subcommand("echo")
     public void echo(@Sender CommandSource source, @Arg("message") @Greedy String message) {
         source.sendMessage(message);

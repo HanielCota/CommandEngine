@@ -24,4 +24,9 @@ public final class FloatArgumentResolver implements ArgumentTypeResolver<Float> 
         Objects.requireNonNull(context, "context");
         return FloatArgumentType.getFloat(context, Objects.requireNonNull(name, "name"));
     }
+
+    @Override
+    public boolean supportsDefault() {
+        return true;
+    }
 }

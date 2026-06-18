@@ -22,14 +22,12 @@ final class AdapterHelperRenderer {
 
         code.append(
                 "    private static boolean hasFlag(CommandContext<CommandSource> context, String name, char shorthand) {\n");
-        code.append("        String input = context.getInput();\n");
-        code.append("        return containsToken(input, \"--\" + name)\n");
-        code.append("            || (shorthand != '\\0' && containsToken(input, \"-\" + shorthand));\n");
-        code.append("    }\n\n");
-
-        code.append("    private static boolean containsToken(String input, String expected) {\n");
-        code.append("        for (String token : input.trim().split(\"\\\\s+\")) {\n");
-        code.append("            if (token.equals(expected)) {\n");
+        code.append("        String longName = \"--\" + name;\n");
+        code.append("        String shortName = shorthand == '\\0' ? null : \"-\" + shorthand;\n");
+        code.append("        for (var parsedNode : context.getNodes()) {\n");
+        code.append("            String nodeName = parsedNode.getNode().getName();\n");
+        code.append(
+                "            if (nodeName.equals(longName) || (shortName != null && nodeName.equals(shortName))) {\n");
         code.append("                return true;\n");
         code.append("            }\n");
         code.append("        }\n");
@@ -40,7 +38,24 @@ final class AdapterHelperRenderer {
         code.append("        if (input == null || input.isBlank()) {\n");
         code.append("            return List.of();\n");
         code.append("        }\n");
+        code.append("        input = stripFormattingCodes(input);\n");
         code.append("        return List.of(input.trim().split(\"\\\\s+\"));\n");
+        code.append("    }\n\n");
+
+        code.append("    private static String stripFormattingCodes(String input) {\n");
+        code.append("        if (input == null || input.indexOf('\\u00A7') < 0) {\n");
+        code.append("            return input;\n");
+        code.append("        }\n");
+        code.append("        StringBuilder stripped = new StringBuilder(input.length());\n");
+        code.append("        for (int index = 0; index < input.length(); index++) {\n");
+        code.append("            char current = input.charAt(index);\n");
+        code.append("            if (current == '\\u00A7' && index + 1 < input.length()) {\n");
+        code.append("                index++;\n");
+        code.append("                continue;\n");
+        code.append("            }\n");
+        code.append("            stripped.append(current);\n");
+        code.append("        }\n");
+        code.append("        return stripped.toString();\n");
         code.append("    }\n\n");
 
         renderSuggestionHelper(code);
@@ -113,6 +128,8 @@ final class AdapterHelperRenderer {
 
         code.append(
                 "    private static Void handleAsyncFailure(CommandSource source, Throwable throwable, CommandScheduler scheduler, CommandMessages messages) {\n");
+        code.append(
+                "        System.getLogger(\"CommandEngine\").log(System.Logger.Level.WARNING, \"Async command execution failed\", throwable);\n");
         code.append("        scheduler.execute(() -> source.sendMessage(messages.internalError()));\n");
         code.append("        return null;\n");
         code.append("    }\n\n");

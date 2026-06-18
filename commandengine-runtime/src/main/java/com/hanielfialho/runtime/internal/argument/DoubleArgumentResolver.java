@@ -24,4 +24,9 @@ public final class DoubleArgumentResolver implements ArgumentTypeResolver<Double
         Objects.requireNonNull(context, "context");
         return DoubleArgumentType.getDouble(context, Objects.requireNonNull(name, "name"));
     }
+
+    @Override
+    public boolean supportsDefault() {
+        return true;
+    }
 }

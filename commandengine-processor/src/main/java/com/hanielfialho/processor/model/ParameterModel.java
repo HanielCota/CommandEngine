@@ -12,6 +12,8 @@ public record ParameterModel(
         boolean greedy,
         @Nullable Double min,
         @Nullable Double max,
+        int minLength,
+        int maxLength,
         char shorthand,
         @Nullable String suggestionMethodName) {
 
@@ -51,6 +53,14 @@ public record ParameterModel(
 
     public @Nullable Double getMax() {
         return max;
+    }
+
+    public int getMinLength() {
+        return minLength;
+    }
+
+    public int getMaxLength() {
+        return maxLength;
     }
 
     public char getShorthand() {

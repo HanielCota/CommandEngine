@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
 public final class WorldSuggestionProvider extends CachedSuggestionProvider {
 
     public WorldSuggestionProvider() {
-        super(Duration.ofSeconds(2));
+        super(Duration.ofSeconds(2), 16, Bukkit::isPrimaryThread);
     }
 
     @Override
