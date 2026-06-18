@@ -39,14 +39,8 @@ public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
     @Override
     public boolean tryAcquire(@NotNull CommandSource source, @NotNull CommandPath path) {
         var key = new Key(Objects.requireNonNull(source, "source").getName(), Objects.requireNonNull(path, "path"));
-        AtomicLong current = executions.asMap().compute(key, (ignored, existing) -> {
-            if (existing == null) {
-                return new AtomicLong(1);
-            }
-            existing.incrementAndGet();
-            return existing;
-        });
-        return current.get() <= maxExecutions;
+        long current = executions.get(key, ignored -> new AtomicLong()).incrementAndGet();
+        return current <= maxExecutions;
     }
 
     private record Key(@NotNull String senderName, @NotNull CommandPath path) {}
