@@ -4,6 +4,19 @@ All notable changes to CommandEngine are documented here.
 
 The project follows semantic versioning once the public API becomes stable. Alpha releases may still contain breaking API changes.
 
+## v0.1.0-alpha.2 - 2026-06-18
+
+### Changed
+
+- Made the GitHub repository public.
+- Updated JitPack documentation to remove private repository credentials.
+- Updated release documentation to use public JitPack coordinates.
+
+### Notes
+
+- No runtime, API or processor behavior changed from `v0.1.0-alpha.1`.
+- This is an alpha release. Public API compatibility is not guaranteed.
+
 ## v0.1.0-alpha.1 - 2026-06-18
 
 ### Added

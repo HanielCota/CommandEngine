@@ -9,7 +9,7 @@ CommandEngine is a compile-time command framework for Java 25 applications and M
 
 The first supported platform is Paper/Purpur. The API and runtime are platform-agnostic, so additional platform adapters can reuse the same command classes.
 
-> Current release: `v0.1.0-alpha.1`. This is an alpha release: it is suitable for experiments and controlled internal plugins, but public API compatibility is not guaranteed yet.
+> Current release: `v0.1.0-alpha.2`. This is an alpha release: it is suitable for experiments and controlled internal plugins, but public API compatibility is not guaranteed yet.
 
 ## Table of Contents
 
@@ -202,7 +202,7 @@ dependencyResolutionManagement {
 Use a Git tag, commit hash or `main-SNAPSHOT` as the version. Tags are recommended for reproducible builds:
 
 ```kotlin
-val commandEngineVersion = "v0.1.0-alpha.1"
+val commandEngineVersion = "v0.1.0-alpha.2"
 
 dependencies {
   implementation("com.github.HanielCota.CommandEngine:commandengine-api:$commandEngineVersion")
@@ -214,7 +214,7 @@ dependencies {
 For Paper:
 
 ```kotlin
-val commandEngineVersion = "v0.1.0-alpha.1"
+val commandEngineVersion = "v0.1.0-alpha.2"
 
 dependencies {
   implementation("com.github.HanielCota.CommandEngine:commandengine-api:$commandEngineVersion")
@@ -498,14 +498,14 @@ Workflow:
 
 ## Releases
 
-Releases are tagged with semantic pre-release versions, for example `v0.1.0-alpha.1`.
+Releases are tagged with semantic pre-release versions, for example `v0.1.0-alpha.2`.
 
 Release checklist:
 
 1. Run `.\gradlew.bat spotlessApply build publishToMavenLocal --stacktrace`.
 2. Confirm `git status --short --branch` is clean.
-3. Create an annotated tag, for example `git tag -a v0.1.0-alpha.1 -m "v0.1.0-alpha.1"`.
-4. Push the tag with `git push origin v0.1.0-alpha.1`.
+3. Create an annotated tag, for example `git tag -a v0.1.0-alpha.2 -m "v0.1.0-alpha.2"`.
+4. Push the tag with `git push origin v0.1.0-alpha.2`.
 5. Create a GitHub release from the tag.
 6. Open JitPack and request the tag build.
 
