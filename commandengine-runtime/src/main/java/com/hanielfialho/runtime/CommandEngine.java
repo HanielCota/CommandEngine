@@ -254,16 +254,22 @@ public final class CommandEngine implements AutoCloseable {
 
     @Override
     public void close() {
+        RuntimeException failure = null;
         try {
             unregisterAll();
-        } finally {
-            if (executor instanceof AutoCloseable closeable) {
-                try {
-                    closeable.close();
-                } catch (Exception exception) {
-                    throw new IllegalStateException("Failed to close command executor", exception);
-                }
+        } catch (RuntimeException exception) {
+            failure = exception;
+        }
+        if (executor instanceof AutoCloseable closeable) {
+            try {
+                closeable.close();
+            } catch (Exception exception) {
+                failure = addSuppressed(
+                        failure, new IllegalStateException("Failed to close command executor", exception));
             }
+        }
+        if (failure != null) {
+            throw failure;
         }
     }
 
