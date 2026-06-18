@@ -90,7 +90,9 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
 
         Plugin currentPlugin = plugin;
         CommandMap currentCommandMap = commandMap;
-        if (currentPlugin == null || currentCommandMap == null || !node.getName().equals(metadata.name())) {
+        if (currentPlugin == null
+                || currentCommandMap == null
+                || !node.getName().equals(metadata.name())) {
             return node;
         }
 
