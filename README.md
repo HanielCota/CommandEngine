@@ -1,10 +1,36 @@
 # CommandEngine
 
-CommandEngine is a compile-time command framework for Java 25 applications and Minecraft server platforms. It uses an annotation processor to generate Brigadier adapters at build time, avoiding reflection on the command execution path while still keeping command classes small and expressive.
+[![CI](https://github.com/HanielCota/CommandEngine/actions/workflows/ci.yml/badge.svg)](https://github.com/HanielCota/CommandEngine/actions/workflows/ci.yml)
+[![JitPack](https://jitpack.io/v/HanielCota/CommandEngine.svg)](https://jitpack.io/#HanielCota/CommandEngine)
+[![Java](https://img.shields.io/badge/Java-25-blue.svg)](https://openjdk.org/projects/jdk/25/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-The current platform implementation targets Paper/Purpur. The core API and runtime are platform-agnostic, so additional platform adapters can be added without changing command code.
+CommandEngine is a compile-time command framework for Java 25 applications and Minecraft server platforms. It generates Brigadier adapters during compilation, so runtime execution uses direct method calls instead of reflection.
 
-> Status: `0.1.0-SNAPSHOT` / alpha. The project builds, is tested, and includes a Paper example plugin, but public API compatibility is not guaranteed yet.
+The first supported platform is Paper/Purpur. The API and runtime are platform-agnostic, so additional platform adapters can reuse the same command classes.
+
+> Current release: `v0.1.0-alpha.1`. This is an alpha release: it is suitable for experiments and controlled internal plugins, but public API compatibility is not guaranteed yet.
+
+## Table of Contents
+
+- [Highlights](#highlights)
+- [Repository Layout](#repository-layout)
+- [Requirements](#requirements)
+- [Modules](#modules)
+- [Installing from JitPack](#installing-from-jitpack)
+- [Quickstart](#quickstart)
+- [Paper Configuration](#paper-configuration)
+- [Execution Model](#execution-model)
+- [Telemetry](#telemetry)
+- [Rate Limiting](#rate-limiting)
+- [Testing](#testing)
+- [Code Style](#code-style)
+- [CI](#ci)
+- [Documentation](#documentation)
+- [Production Readiness](#production-readiness)
+- [Roadmap](#roadmap)
+- [Changelog](#changelog)
+- [License](#license)
 
 ## Highlights
 
@@ -69,6 +95,15 @@ On Linux/macOS:
 ```
 
 ## Modules
+
+| Module | Published | Purpose |
+| --- | --- | --- |
+| `commandengine-api` | Yes | Public annotations, metadata, source abstraction and SPIs. |
+| `commandengine-runtime` | Yes | Registration, execution, telemetry, configuration, cache and rate limit. |
+| `commandengine-processor` | Yes | Annotation processor that generates Brigadier adapters. |
+| `commandengine-platform-paper` | Yes | Paper/Purpur bridge, native resolvers and config loading. |
+| `commandengine-test` | Yes | Test harness and local Brigadier utilities. |
+| `commandengine-example-paper` | No | Minimal plugin for manual Paper smoke tests. |
 
 ### `commandengine-api`
 
@@ -137,6 +172,18 @@ Example commands:
 - `/cexample ping`
 - `/cexample echo <message>`
 
+Build only the example plugin:
+
+```powershell
+.\gradlew.bat :commandengine-example-paper:build
+```
+
+The plugin JAR is created at:
+
+```text
+commandengine-example-paper/build/libs/commandengine-example-paper-0.1.0-SNAPSHOT.jar
+```
+
 ## Installing from JitPack
 
 Add JitPack to your repositories:
@@ -152,10 +199,10 @@ dependencyResolutionManagement {
 }
 ```
 
-Use a Git tag, commit hash or `main-SNAPSHOT` as the version:
+Use a Git tag, commit hash or `main-SNAPSHOT` as the version. Tags are recommended for reproducible builds:
 
 ```kotlin
-val commandEngineVersion = "main-SNAPSHOT"
+val commandEngineVersion = "v0.1.0-alpha.1"
 
 dependencies {
   implementation("com.github.HanielCota.CommandEngine:commandengine-api:$commandEngineVersion")
@@ -167,7 +214,7 @@ dependencies {
 For Paper:
 
 ```kotlin
-val commandEngineVersion = "main-SNAPSHOT"
+val commandEngineVersion = "v0.1.0-alpha.1"
 
 dependencies {
   implementation("com.github.HanielCota.CommandEngine:commandengine-api:$commandEngineVersion")
@@ -467,6 +514,19 @@ Workflow:
 .github/workflows/ci.yml
 ```
 
+## Releases
+
+Releases are tagged with semantic pre-release versions, for example `v0.1.0-alpha.1`.
+
+Release checklist:
+
+1. Run `.\gradlew.bat spotlessApply build publishToMavenLocal --stacktrace`.
+2. Confirm `git status --short --branch` is clean.
+3. Create an annotated tag, for example `git tag -a v0.1.0-alpha.1 -m "v0.1.0-alpha.1"`.
+4. Push the tag with `git push origin v0.1.0-alpha.1`.
+5. Create a GitHub release from the tag.
+6. Open JitPack and request the tag build.
+
 ## Documentation
 
 - [Quickstart](docs/QUICKSTART.md)
@@ -474,6 +534,7 @@ Workflow:
 - [Decision Log](docs/DECISION_LOG.md)
 - [Coding Standards](docs/CODING_STANDARDS.md)
 - [Production Checklist](docs/PRODUCTION_CHECKLIST.md)
+- [Changelog](CHANGELOG.md)
 
 ## Production Readiness
 
@@ -502,6 +563,10 @@ Use [Production Checklist](docs/PRODUCTION_CHECKLIST.md) before shipping.
 - Fabric platform adapter.
 - Sponge platform adapter.
 - Benchmark suite.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

@@ -50,7 +50,7 @@ allprojects {
       } else {
         "com.hanielfialho"
       }
-  version = "0.1.0-SNAPSHOT"
+  version = providers.environmentVariable("VERSION").orElse("0.1.0-SNAPSHOT").get()
 }
 
 subprojects {
