@@ -4,6 +4,42 @@ All notable changes to CommandEngine are documented here.
 
 The project follows semantic versioning once the public API becomes stable. Alpha releases may still contain breaking API changes.
 
+## v0.1.0-alpha.4 - 2026-06-19
+
+### Added
+
+- Added an agent guide in `AGENTS.md` with project context, module responsibilities, validation commands and CI/SonarCloud notes.
+- Added broader runtime and Paper platform tests for command registration, unregister behavior, rate limiting, native arguments and plugin disable cleanup.
+
+### Changed
+
+- Refreshed the README with a fuller modern project overview, install instructions, quickstart, architecture summary and contribution guidance.
+- Improved command registration and unregister cleanup so adapters, Brigadier nodes and platform command map entries remain consistent.
+- Improved generated adapter handling for optional arguments, flags, string validation, custom argument resolution and telemetry-wrapped execution.
+- Improved Paper command binding, command claiming, tab completion timeout handling and native argument/suggestion behavior.
+- Improved virtual-thread execution timeout handling and lifecycle cleanup.
+
+### Fixed
+
+- Fixed SonarCloud reliability issues around nullable values and exception masking during close/cleanup.
+- Fixed rate limiter counter updates to avoid nullable `Map.compute` results.
+- Fixed Spotless formatting regressions in the Paper platform binding.
+
+### Notes
+
+- This is an alpha release. Public API compatibility is not guaranteed.
+- GitHub Actions and SonarCloud are green for this release commit.
+
+## v0.1.0-alpha.3 - 2026-06-18
+
+### Fixed
+
+- Applied required Spotless formatting after the public alpha release.
+
+### Notes
+
+- No intentional runtime, API or processor behavior changed from `v0.1.0-alpha.2`.
+
 ## v0.1.0-alpha.2 - 2026-06-18
 
 ### Changed

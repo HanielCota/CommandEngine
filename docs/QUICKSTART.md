@@ -26,7 +26,7 @@ dependencyResolutionManagement {
 E consuma os módulos publicados:
 
 ```kotlin
-val commandEngineVersion = "v0.1.0-alpha.2"
+val commandEngineVersion = "v0.1.0-alpha.4"
 
 dependencies {
   implementation("com.github.HanielCota.CommandEngine:commandengine-api:$commandEngineVersion")
