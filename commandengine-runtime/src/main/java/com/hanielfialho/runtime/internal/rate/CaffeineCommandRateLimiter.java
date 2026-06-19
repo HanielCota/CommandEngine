@@ -2,6 +2,7 @@ package com.hanielfialho.runtime.internal.rate;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.hanielfialho.api.command.CommandPath;
 import com.hanielfialho.api.rate.CommandRateLimiter;
 import com.hanielfialho.api.source.CommandSource;
@@ -18,7 +19,13 @@ public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
     private final long windowNanos;
 
     public CaffeineCommandRateLimiter(@NotNull Duration window, int maxExecutions, long maximumSize) {
+        this(window, maxExecutions, maximumSize, Ticker.systemTicker());
+    }
+
+    public CaffeineCommandRateLimiter(
+            @NotNull Duration window, int maxExecutions, long maximumSize, @NotNull Ticker ticker) {
         Preconditions.checkNotNull(window, "window");
+        Preconditions.checkNotNull(ticker, "ticker");
         if (window.isZero() || window.isNegative()) {
             throw new IllegalArgumentException("window must be positive");
         }
@@ -32,6 +39,7 @@ public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
         this.windowNanos = window.toNanos();
         this.executions = Caffeine.newBuilder()
                 .expireAfter(new WindowExpiry<>(windowNanos))
+                .ticker(ticker)
                 .maximumSize(maximumSize)
                 .build();
     }

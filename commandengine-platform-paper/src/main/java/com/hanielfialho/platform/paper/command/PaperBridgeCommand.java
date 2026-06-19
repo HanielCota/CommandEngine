@@ -22,6 +22,8 @@ import org.jetbrains.annotations.NotNull;
 
 public final class PaperBridgeCommand extends Command {
 
+    private static final long TAB_COMPLETE_TIMEOUT_MILLIS = 100L;
+
     private final CommandDispatcher<CommandSource> dispatcher;
     private final Logger logger;
     private final CommandMessages messages;
@@ -68,7 +70,8 @@ public final class PaperBridgeCommand extends Command {
         CommandSource source = new PaperCommandSource(sender);
         ParseResults<CommandSource> parse = dispatcher.parse(commandLine(alias, args), source);
         try {
-            Suggestions suggestions = dispatcher.getCompletionSuggestions(parse).get(5, TimeUnit.SECONDS);
+            Suggestions suggestions =
+                    dispatcher.getCompletionSuggestions(parse).get(TAB_COMPLETE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
             return suggestions.getList().stream().map(Suggestion::getText).toList();
         } catch (CompletionException exception) {
             logger.log(Level.FINE, exception, () -> "Command completion failed for /" + alias);

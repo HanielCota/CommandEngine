@@ -13,6 +13,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import org.jetbrains.annotations.NotNull;
 
 public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseable {
@@ -38,11 +39,11 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
             throw new IllegalArgumentException("timeout must be positive");
         }
         this.executor = createTaskExecutor();
-        this.timeoutExecutor = Executors.newSingleThreadScheduledExecutor(task -> {
-            Thread thread = new Thread(task, "commandengine-timeouts");
-            thread.setDaemon(true);
-            return thread;
-        });
+        ThreadFactory timeoutThreadFactory = Thread.ofPlatform()
+                .name("commandengine-timeouts-", 0)
+                .daemon(true)
+                .factory();
+        this.timeoutExecutor = Executors.newSingleThreadScheduledExecutor(timeoutThreadFactory);
         this.messages = Preconditions.checkNotNull(messages, "messages");
         this.timeout = timeout;
     }

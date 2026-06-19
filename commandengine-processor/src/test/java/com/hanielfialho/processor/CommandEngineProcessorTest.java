@@ -107,6 +107,8 @@ final class CommandEngineProcessorTest {
         generatedAdapter.contains("StringArgumentType.greedyString()");
         generatedAdapter.contains(
                 "hasArgument(context, \"body\") ? stripFormattingCodes(StringArgumentType.getString(context, \"body\")) : \"hello\"");
+        generatedAdapter.contains("parsedNode.getNode() instanceof ArgumentCommandNode");
+        generatedAdapter.doesNotContain("context.getArgument(name, Object.class)");
     }
 
     @Test
@@ -264,7 +266,10 @@ final class CommandEngineProcessorTest {
         var generatedAdapter = assertThat(compilation)
                 .generatedSourceFile("example.WarpCommandCommandAdapter")
                 .contentsAsUtf8String();
-        generatedAdapter.contains(".suggests((context, builder) -> suggestFrom(builder, instance.warpNames()))");
+        generatedAdapter.contains(
+                ".suggests((context, builder) -> suggestFrom(builder, telemetry, COMMAND_PATH_0, () -> instance.warpNames()))");
+        generatedAdapter.contains("long started = telemetry == CommandTelemetry.NOOP ? 0L : System.nanoTime()");
+        generatedAdapter.contains("if (telemetry == CommandTelemetry.NOOP)");
     }
 
     @Test
@@ -387,6 +392,8 @@ final class CommandEngineProcessorTest {
                 "splitArguments(StringArgumentType.getString(context, \"args\")).toArray(String[]::new)");
         generatedAdapter.contains(
                 "java.util.List<java.lang.String> arg0 = splitArguments(StringArgumentType.getString(context, \"args\"))");
+        generatedAdapter.contains("List<String> arguments = new java.util.ArrayList<>()");
+        generatedAdapter.doesNotContain("split(\"\\\\s+\")");
         generatedAdapter.contains("new ParameterMetadata(\"args\", java.util.List.class");
     }
 
@@ -881,6 +888,54 @@ final class CommandEngineProcessorTest {
     }
 
     @Test
+    void rejectsAliasEqualToCommandNameIgnoringCase() {
+        JavaFileObject command = JavaFileObjects.forSourceString("example.BadCommand", """
+                package example;
+
+                import com.hanielfialho.api.annotation.Command;
+                import com.hanielfialho.api.annotation.Subcommand;
+
+                @Command(name = "bad", aliases = {"BAD"})
+                public final class BadCommand {
+
+                    @Subcommand("run")
+                    public void run() {
+                    }
+                }
+                """);
+
+        Compilation compilation =
+                Compiler.javac().withProcessors(new CommandEngineProcessor()).compile(command);
+
+        assertThat(compilation).failed();
+        assertThat(compilation).hadErrorContaining("@Command alias must not be equal to the command name");
+    }
+
+    @Test
+    void rejectsDuplicateAliasesIgnoringCase() {
+        JavaFileObject command = JavaFileObjects.forSourceString("example.BadCommand", """
+                package example;
+
+                import com.hanielfialho.api.annotation.Command;
+                import com.hanielfialho.api.annotation.Subcommand;
+
+                @Command(name = "bad", aliases = {"Run", "run"})
+                public final class BadCommand {
+
+                    @Subcommand("execute")
+                    public void execute() {
+                    }
+                }
+                """);
+
+        Compilation compilation =
+                Compiler.javac().withProcessors(new CommandEngineProcessor()).compile(command);
+
+        assertThat(compilation).failed();
+        assertThat(compilation).hadErrorContaining("Duplicate @Command alias");
+    }
+
+    @Test
     void rejectsInvalidOptionalDefaultValue() {
         JavaFileObject command = JavaFileObjects.forSourceString("example.BadCommand", """
                 package example;
@@ -938,7 +993,8 @@ final class CommandEngineProcessorTest {
         var generatedAdapter = assertThat(compilation)
                 .generatedSourceFile("example.SuggestCommandCommandAdapter")
                 .contentsAsUtf8String();
-        generatedAdapter.contains(".suggests((context, builder) -> suggestFrom(builder, instance.names()))");
+        generatedAdapter.contains(
+                ".suggests((context, builder) -> suggestFrom(builder, telemetry, COMMAND_PATH_0, () -> instance.names()))");
     }
 
     @Test
@@ -1119,5 +1175,25 @@ final class CommandEngineProcessorTest {
 
         assertThat(compilation).failed();
         assertThat(compilation).hadErrorContaining("@Command name contains invalid characters");
+    }
+
+    @Test
+    void rejectsCommandWithoutHandlers() {
+        JavaFileObject command = JavaFileObjects.forSourceString("example.EmptyCommand", """
+                package example;
+
+                import com.hanielfialho.api.annotation.Command;
+
+                @Command(name = "empty")
+                public final class EmptyCommand {
+                }
+                """);
+
+        Compilation compilation =
+                Compiler.javac().withProcessors(new CommandEngineProcessor()).compile(command);
+
+        assertThat(compilation).failed();
+        assertThat(compilation)
+                .hadErrorContaining("@Command classes must declare at least one @Subcommand or onCommand handler");
     }
 }

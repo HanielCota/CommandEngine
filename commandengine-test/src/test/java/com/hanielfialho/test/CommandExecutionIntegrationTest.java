@@ -31,150 +31,164 @@ import org.junit.jupiter.api.Test;
 
 final class CommandExecutionIntegrationTest {
 
+    private static com.hanielfialho.test.source.MockCommandSource source(String name) {
+        return new com.hanielfialho.test.source.MockCommandSource(name);
+    }
+
     @Test
     void executesAliasSuggestionsGreedyRangeAndFlagsThroughBrigadier() throws Exception {
-        var harness = TestEngine.harness();
-        var source = new MockCommandSource("tester");
-        source.addPermission("warp.use");
-        var warp = new IntegrationWarpCommand();
-        var economy = new IntegrationEconomyCommand();
-        var debug = new IntegrationDebugCommand();
+        try (var harness = com.hanielfialho.test.engine.TestEngine.harness()) {
+            var source = source("tester");
+            source.addPermission("warp.use");
+            var warp = new IntegrationWarpCommand();
+            var economy = new IntegrationEconomyCommand();
+            var debug = new IntegrationDebugCommand();
 
-        harness.engine().register(warp).register(economy).register(debug);
+            harness.engine().register(warp).register(economy).register(debug);
 
-        harness.dispatcher().execute("w teleport spawn", source);
-        harness.dispatcher().execute("warp broadcast hello brave world", source);
-        harness.dispatcher().execute("warp args alpha beta gamma", source);
-        harness.dispatcher().execute("warp list one two", source);
-        harness.dispatcher().execute("warp args delta", source);
-        harness.dispatcher().execute("warp root alpha", source);
-        harness.dispatcher().execute("w epsilon", source);
-        harness.dispatcher().execute("eco pay 100", source);
-        harness.dispatcher().execute("debug toggle --verbose", source);
-        harness.dispatcher().execute("debug multi --beta --alpha", source);
+            harness.dispatcher().execute("w teleport spawn", source);
+            harness.dispatcher().execute("warp broadcast hello brave world", source);
+            harness.dispatcher().execute("warp args alpha beta gamma", source);
+            harness.dispatcher().execute("warp list one two", source);
+            harness.dispatcher().execute("warp args delta", source);
+            harness.dispatcher().execute("warp root alpha", source);
+            harness.dispatcher().execute("w epsilon", source);
+            harness.dispatcher().execute("eco pay 100", source);
+            harness.dispatcher().execute("debug toggle --verbose", source);
+            harness.dispatcher().execute("debug multi --beta --alpha", source);
 
-        waitUntil(() -> warp.events().size() == 7
-                && economy.events().size() == 1
-                && debug.events().size() == 2);
+            waitUntil(() -> warp.events().size() == 7
+                    && economy.events().size() == 1
+                    && debug.events().size() == 2);
 
-        assertThat(warp.events())
-                .containsExactlyInAnyOrder(
-                        "teleport:spawn:tester",
-                        "broadcast:hello brave world",
-                        "args:alpha,beta,gamma",
-                        "list:one,two",
-                        "args:delta",
-                        "root:tester:root,alpha",
-                        "root:tester:epsilon");
-        assertThat(economy.events()).containsExactly("pay:100");
-        assertThat(debug.events()).containsExactlyInAnyOrder("verbose:true", "multi:true:true");
+            assertThat(warp.events())
+                    .containsExactlyInAnyOrder(
+                            "teleport:spawn:tester",
+                            "broadcast:hello brave world",
+                            "args:alpha,beta,gamma",
+                            "list:one,two",
+                            "args:delta",
+                            "root:tester:root,alpha",
+                            "root:tester:epsilon");
+            assertThat(economy.events()).containsExactly("pay:100");
+            assertThat(debug.events()).containsExactlyInAnyOrder("verbose:true", "multi:true:true");
 
-        var parse = harness.dispatcher().parse("warp teleport s", source);
-        var suggestions = harness.dispatcher().getCompletionSuggestions(parse).join();
-        assertThat(suggestions.getList()).extracting(Suggestion::getText).containsExactlyInAnyOrder("spawn", "shop");
+            var parse = harness.dispatcher().parse("warp teleport s", source);
+            var suggestions =
+                    harness.dispatcher().getCompletionSuggestions(parse).join();
+            assertThat(suggestions.getList())
+                    .extracting(Suggestion::getText)
+                    .containsExactlyInAnyOrder("spawn", "shop");
 
-        assertThatThrownBy(() -> harness.dispatcher().execute("eco pay 101", source))
-                .isInstanceOf(CommandSyntaxException.class);
-        assertThat(economy.events()).containsExactly("pay:100");
+            assertThatThrownBy(() -> harness.dispatcher().execute("eco pay 101", source))
+                    .isInstanceOf(CommandSyntaxException.class);
+            assertThat(economy.events()).containsExactly("pay:100");
+        }
     }
 
     @Test
     void inheritedPermissionBlocksSubcommandBeforeHandlerRuns() {
-        var harness = TestEngine.harness();
-        var source = new MockCommandSource("tester");
-        var warp = new IntegrationWarpCommand();
-        harness.engine().register(warp);
+        try (var harness = com.hanielfialho.test.engine.TestEngine.harness()) {
+            var source = source("tester");
+            var warp = new IntegrationWarpCommand();
+            harness.engine().register(warp);
 
-        assertThatThrownBy(() -> harness.dispatcher().execute("warp teleport spawn", source))
-                .isInstanceOf(CommandSyntaxException.class);
-        assertThat(warp.events()).isEmpty();
+            assertThatThrownBy(() -> harness.dispatcher().execute("warp teleport spawn", source))
+                    .isInstanceOf(CommandSyntaxException.class);
+            assertThat(warp.events()).isEmpty();
+        }
     }
 
     @Test
     void resolvesExternalArgumentTypesThroughRegisteredResolvers() throws Exception {
         var adapter = new LocalBrigadierAdapter();
-        var engine = CommandEngine.builder()
+        try (var engine = CommandEngine.builder()
                 .brigadier(adapter)
                 .argumentResolver(new InstantArgumentResolver())
-                .build();
-        var source = new MockCommandSource("tester");
-        var command = new IntegrationTimeCommand();
+                .build()) {
+            var source = source("tester");
+            var command = new IntegrationTimeCommand();
 
-        engine.register(command);
-        adapter.dispatcher().execute("time parse 2026-06-18T12:00:00Z", source);
+            engine.register(command);
+            adapter.dispatcher().execute("time parse 2026-06-18T12:00:00Z", source);
 
-        waitUntil(() -> command.events().size() == 1);
+            waitUntil(() -> command.events().size() == 1);
 
-        assertThat(command.events()).containsExactly("instant:2026-06-18T12:00:00Z");
+            assertThat(command.events()).containsExactly("instant:2026-06-18T12:00:00Z");
+        }
     }
 
     @Test
     void unregistersPreviouslyRegisteredCommandInstance() {
-        var harness = TestEngine.harness();
-        var source = new MockCommandSource("tester");
-        source.addPermission("warp.use");
-        var warp = new IntegrationWarpCommand();
-        harness.engine().register(warp);
+        try (var harness = com.hanielfialho.test.engine.TestEngine.harness()) {
+            var source = source("tester");
+            source.addPermission("warp.use");
+            var warp = new IntegrationWarpCommand();
+            harness.engine().register(warp);
 
-        harness.engine().unregister(warp);
+            harness.engine().unregister(warp);
 
-        assertThatThrownBy(() -> harness.dispatcher().execute("warp teleport spawn", source))
-                .isInstanceOf(CommandSyntaxException.class);
+            assertThatThrownBy(() -> harness.dispatcher().execute("warp teleport spawn", source))
+                    .isInstanceOf(CommandSyntaxException.class);
+        }
     }
 
     @Test
     void rejectsDuplicateCommandNameWithoutReplacingExistingDispatcherNode() throws Exception {
-        var harness = TestEngine.harness();
-        var source = new MockCommandSource("tester");
-        source.addPermission("warp.use");
-        var first = new IntegrationWarpCommand();
-        var duplicate = new IntegrationWarpCommand();
+        try (var harness = com.hanielfialho.test.engine.TestEngine.harness()) {
+            var source = source("tester");
+            source.addPermission("warp.use");
+            var first = new IntegrationWarpCommand();
+            var duplicate = new IntegrationWarpCommand();
 
-        harness.engine().register(first);
+            harness.engine().register(first);
 
-        assertThatThrownBy(() -> harness.engine().register(duplicate))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Command already registered: warp");
+            assertThatThrownBy(() -> harness.engine().register(duplicate))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Command already registered: warp");
 
-        harness.dispatcher().execute("warp broadcast still here", source);
+            harness.dispatcher().execute("warp broadcast still here", source);
 
-        waitUntil(() -> first.events().size() == 1);
+            waitUntil(() -> first.events().size() == 1);
 
-        assertThat(first.events()).containsExactly("broadcast:still here");
-        assertThat(duplicate.events()).isEmpty();
+            assertThat(first.events()).containsExactly("broadcast:still here");
+            assertThat(duplicate.events()).isEmpty();
+        }
     }
 
     @Test
     void recordsTelemetryForGeneratedAsyncHandlers() throws Exception {
         var adapter = new LocalBrigadierAdapter();
         var telemetry = new RecordingTelemetry();
-        var engine =
-                CommandEngine.builder().brigadier(adapter).telemetry(telemetry).build();
-        var source = new MockCommandSource("tester");
-        source.addPermission("warp.use");
+        try (var engine =
+                CommandEngine.builder().brigadier(adapter).telemetry(telemetry).build()) {
+            var source = source("tester");
+            source.addPermission("warp.use");
 
-        engine.register(new IntegrationWarpCommand());
-        adapter.dispatcher().execute("warp teleport spawn", source);
+            engine.register(new IntegrationWarpCommand());
+            adapter.dispatcher().execute("warp teleport spawn", source);
 
-        waitUntil(() -> telemetry.executions().contains("warp teleport:true"));
+            waitUntil(() -> telemetry.executions().contains("warp teleport:true"));
 
-        assertThat(telemetry.executions()).contains("warp teleport:true");
+            assertThat(telemetry.executions()).contains("warp teleport:true");
+        }
     }
 
     @Test
     void usesConfiguredMessagesForInvalidSender() throws Exception {
         var adapter = new LocalBrigadierAdapter();
         var messages = new CommandMessages("internal-custom", "sender-custom", "syntax-custom", "permission-custom");
-        var engine =
-                CommandEngine.builder().brigadier(adapter).messages(messages).build();
-        var source = new MockCommandSource("tester");
-        var command = new IntegrationPlayerOnlyCommand();
+        try (var engine =
+                CommandEngine.builder().brigadier(adapter).messages(messages).build()) {
+            var source = source("tester");
+            var command = new IntegrationPlayerOnlyCommand();
 
-        engine.register(command);
-        adapter.dispatcher().execute("playeronly run", source);
+            engine.register(command);
+            adapter.dispatcher().execute("playeronly run", source);
 
-        assertThat(source.messages()).containsExactly("sender-custom");
-        assertThat(command.events()).isEmpty();
+            assertThat(source.messages()).containsExactly("sender-custom");
+            assertThat(command.events()).isEmpty();
+        }
     }
 
     @Test
@@ -184,58 +198,61 @@ final class CommandExecutionIntegrationTest {
         CommandRateLimiter limiter = (source, path) -> attempts.incrementAndGet() == 1;
         var messages = new CommandMessages(
                 "internal-custom", "sender-custom", "syntax-custom", "permission-custom", "limited-custom");
-        var engine = CommandEngine.builder()
+        try (var engine = CommandEngine.builder()
                 .brigadier(adapter)
                 .messages(messages)
                 .rateLimiter(limiter)
-                .build();
-        var source = new MockCommandSource("tester");
-        source.addPermission("warp.use");
-        var command = new IntegrationWarpCommand();
+                .build()) {
+            var source = source("tester");
+            source.addPermission("warp.use");
+            var command = new IntegrationWarpCommand();
 
-        engine.register(command);
-        adapter.dispatcher().execute("warp broadcast first", source);
-        adapter.dispatcher().execute("warp broadcast second", source);
+            engine.register(command);
+            adapter.dispatcher().execute("warp broadcast first", source);
+            adapter.dispatcher().execute("warp broadcast second", source);
 
-        waitUntil(() -> command.events().size() == 1 && source.messages().size() == 1);
+            waitUntil(() -> command.events().size() == 1 && source.messages().size() == 1);
 
-        assertThat(command.events()).containsExactly("broadcast:first");
-        assertThat(source.messages()).containsExactly("limited-custom");
+            assertThat(command.events()).containsExactly("broadcast:first");
+            assertThat(source.messages()).containsExactly("limited-custom");
+        }
     }
 
     @Test
     void handlesCustomArgumentResolverExceptionsAsInternalError() throws Exception {
         var adapter = new LocalBrigadierAdapter();
-        var engine = CommandEngine.builder()
+        try (var engine = CommandEngine.builder()
                 .brigadier(adapter)
                 .argumentResolver(new FailingArgumentResolver())
-                .build();
-        var source = new MockCommandSource("tester");
-        var command = new IntegrationTimeCommand();
+                .build()) {
+            var source = source("tester");
+            var command = new IntegrationTimeCommand();
 
-        engine.register(command);
+            engine.register(command);
 
-        int result = adapter.dispatcher().execute("time parse invalid", source);
+            int result = adapter.dispatcher().execute("time parse invalid", source);
 
-        waitUntil(() -> source.messages().size() == 1);
+            waitUntil(() -> source.messages().size() == 1);
 
-        assertThat(result).isEqualTo(1);
-        assertThat(command.events()).isEmpty();
-        assertThat(source.messages()).containsExactly("An internal error occurred while executing this command.");
+            assertThat(result).isEqualTo(1);
+            assertThat(command.events()).isEmpty();
+            assertThat(source.messages()).containsExactly("An internal error occurred while executing this command.");
+        }
     }
 
     @Test
     void dispatchesManyGeneratedCommandsWithoutDroppingExecutions() throws Exception {
-        var harness = TestEngine.harness();
-        var source = new MockCommandSource("stress-tester");
-        var command = new IntegrationStressCommand();
+        try (var harness = com.hanielfialho.test.engine.TestEngine.harness()) {
+            var source = source("stress-tester");
+            var command = new IntegrationStressCommand();
 
-        harness.engine().register(command);
-        for (int i = 0; i < 1_000; i++) {
-            harness.dispatcher().execute("stress ping", source);
+            harness.engine().register(command);
+            for (int i = 0; i < 1_000; i++) {
+                harness.dispatcher().execute("stress ping", source);
+            }
+
+            assertThat(command.executions()).isEqualTo(1_000);
         }
-
-        assertThat(command.executions()).isEqualTo(1_000);
     }
 
     private static void waitUntil(BooleanSupplier condition) {

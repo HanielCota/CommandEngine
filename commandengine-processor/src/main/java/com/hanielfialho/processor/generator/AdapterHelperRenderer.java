@@ -12,12 +12,13 @@ final class AdapterHelperRenderer {
 
     void render(StringBuilder code) {
         code.append("    private static boolean hasArgument(CommandContext<CommandSource> context, String name) {\n");
-        code.append("        try {\n");
-        code.append("            context.getArgument(name, Object.class);\n");
-        code.append("            return true;\n");
-        code.append("        } catch (IllegalArgumentException exception) {\n");
-        code.append("            return false;\n");
+        code.append("        for (var parsedNode : context.getNodes()) {\n");
+        code.append(
+                "            if (parsedNode.getNode() instanceof ArgumentCommandNode && parsedNode.getNode().getName().equals(name)) {\n");
+        code.append("                return true;\n");
+        code.append("            }\n");
         code.append("        }\n");
+        code.append("        return false;\n");
         code.append("    }\n\n");
 
         code.append(
@@ -39,7 +40,26 @@ final class AdapterHelperRenderer {
         code.append("            return List.of();\n");
         code.append("        }\n");
         code.append("        input = stripFormattingCodes(input);\n");
-        code.append("        return List.of(input.trim().split(\"\\\\s+\"));\n");
+        code.append("        input = input.trim();\n");
+        code.append("        if (input.isEmpty()) {\n");
+        code.append("            return List.of();\n");
+        code.append("        }\n");
+        code.append("        List<String> arguments = new java.util.ArrayList<>();\n");
+        code.append("        int start = -1;\n");
+        code.append("        for (int index = 0; index < input.length(); index++) {\n");
+        code.append("            if (Character.isWhitespace(input.charAt(index))) {\n");
+        code.append("                if (start >= 0) {\n");
+        code.append("                    arguments.add(input.substring(start, index));\n");
+        code.append("                    start = -1;\n");
+        code.append("                }\n");
+        code.append("            } else if (start < 0) {\n");
+        code.append("                start = index;\n");
+        code.append("            }\n");
+        code.append("        }\n");
+        code.append("        if (start >= 0) {\n");
+        code.append("            arguments.add(input.substring(start));\n");
+        code.append("        }\n");
+        code.append("        return List.copyOf(arguments);\n");
         code.append("    }\n\n");
 
         code.append("    private static String stripFormattingCodes(String input) {\n");
@@ -64,20 +84,54 @@ final class AdapterHelperRenderer {
     }
 
     private void renderSuggestionHelper(StringBuilder code) {
+        code.append("    private static final Logger ADAPTER_HELPER_LOGGER = Logger.getLogger(\"CommandEngine\");\n\n");
         code.append(
                 "    private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggestFrom(\n");
-        code.append("            SuggestionsBuilder builder, List<String> suggestions) {\n");
-        code.append("        if (suggestions == null || suggestions.isEmpty()) {\n");
-        code.append("            return builder.buildFuture();\n");
-        code.append("        }\n");
-        code.append("        String remaining = builder.getRemainingLowerCase();\n");
-        code.append("        for (String suggestion : suggestions) {\n");
         code.append(
-                "            if (suggestion != null && suggestion.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {\n");
-        code.append("                builder.suggest(suggestion);\n");
+                "            SuggestionsBuilder builder, CommandTelemetry telemetry, CommandPath path, Supplier<List<String>> supplier) {\n");
+        code.append("        long started = telemetry == CommandTelemetry.NOOP ? 0L : System.nanoTime();\n");
+        code.append("        int suggestionCount = 0;\n");
+        code.append("        try {\n");
+        code.append("            List<String> suggestions = supplier.get();\n");
+        code.append("            if (suggestions == null || suggestions.isEmpty()) {\n");
+        code.append("                recordSuggestion(telemetry, path, started, suggestionCount);\n");
+        code.append("                return builder.buildFuture();\n");
         code.append("            }\n");
+        code.append("            String remaining = builder.getRemainingLowerCase();\n");
+        code.append("            for (String suggestion : suggestions) {\n");
+        code.append(
+                "                if (suggestion != null && suggestion.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {\n");
+        code.append("                    builder.suggest(suggestion);\n");
+        code.append("                    suggestionCount++;\n");
+        code.append("                }\n");
+        code.append("            }\n");
+        code.append("            recordSuggestion(telemetry, path, started, suggestionCount);\n");
+        code.append("        } catch (RuntimeException exception) {\n");
+        code.append("            recordSuggestionFailure(telemetry, path, exception);\n");
         code.append("        }\n");
         code.append("        return builder.buildFuture();\n");
+        code.append("    }\n\n");
+        code.append(
+                "    private static void recordSuggestion(CommandTelemetry telemetry, CommandPath path, long started, int count) {\n");
+        code.append("        if (telemetry == CommandTelemetry.NOOP) {\n");
+        code.append("            return;\n");
+        code.append("        }\n");
+        code.append("        try {\n");
+        code.append("            telemetry.recordSuggestion(path, System.nanoTime() - started, count);\n");
+        code.append("        } catch (RuntimeException exception) {\n");
+        code.append("            ADAPTER_HELPER_LOGGER.log(Level.FINE, \"Suggestion telemetry failed\", exception);\n");
+        code.append("        }\n");
+        code.append("    }\n\n");
+        code.append(
+                "    private static void recordSuggestionFailure(CommandTelemetry telemetry, CommandPath path, RuntimeException failure) {\n");
+        code.append("        if (telemetry == CommandTelemetry.NOOP) {\n");
+        code.append("            return;\n");
+        code.append("        }\n");
+        code.append("        try {\n");
+        code.append("            telemetry.recordFailure(path, \"SUGGESTION\", failure);\n");
+        code.append("        } catch (RuntimeException exception) {\n");
+        code.append("            ADAPTER_HELPER_LOGGER.log(Level.FINE, \"Suggestion telemetry failed\", exception);\n");
+        code.append("        }\n");
         code.append("    }\n\n");
     }
 
@@ -129,7 +183,7 @@ final class AdapterHelperRenderer {
         code.append(
                 "    private static Void handleAsyncFailure(CommandSource source, Throwable throwable, CommandScheduler scheduler, CommandMessages messages) {\n");
         code.append(
-                "        System.getLogger(\"CommandEngine\").log(System.Logger.Level.WARNING, \"Async command execution failed\", throwable);\n");
+                "        ADAPTER_HELPER_LOGGER.log(Level.WARNING, \"Async command execution failed\", throwable);\n");
         code.append("        scheduler.execute(() -> source.sendMessage(messages.internalError()));\n");
         code.append("        return null;\n");
         code.append("    }\n\n");

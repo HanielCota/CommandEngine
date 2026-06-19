@@ -7,7 +7,7 @@ Este guia mostra o caminho mínimo para usar o CommandEngine em Java 25.
 - JDK 25.
 - Gradle 9.5.0.
 - Annotation processor habilitado no módulo que contém os comandos.
-- Build com Spotless: `./gradlew build` executa `spotlessApply` antes de compilar.
+- Build com Spotless: `./gradlew build` executa `spotlessCheck` antes de compilar.
 
 ## Dependências Gradle
 
@@ -26,7 +26,7 @@ dependencyResolutionManagement {
 E consuma os módulos publicados:
 
 ```kotlin
-val commandEngineVersion = "v0.1.0-alpha.4"
+val commandEngineVersion = "v0.1.0-alpha.5"
 
 dependencies {
   implementation("com.github.HanielCota.CommandEngine:commandengine-api:$commandEngineVersion")

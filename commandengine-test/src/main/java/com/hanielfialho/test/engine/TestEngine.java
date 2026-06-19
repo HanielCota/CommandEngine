@@ -14,6 +14,7 @@ public final class TestEngine {
         return harness().engine();
     }
 
+    @SuppressWarnings("resource")
     public static @NotNull Harness harness() {
         var adapter = new LocalBrigadierAdapter();
         var engine = CommandEngine.builder().brigadier(adapter).build();
@@ -21,5 +22,12 @@ public final class TestEngine {
     }
 
     public record Harness(
-            @NotNull CommandEngine engine, @NotNull CommandDispatcher<CommandSource> dispatcher) {}
+            @NotNull CommandEngine engine, @NotNull CommandDispatcher<CommandSource> dispatcher)
+            implements AutoCloseable {
+
+        @Override
+        public void close() {
+            engine.close();
+        }
+    }
 }

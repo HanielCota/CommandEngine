@@ -81,6 +81,10 @@ public final class CommandModelReader {
             }
             model.addSubcommand(subcommand.get());
         }
+        if (model.getSubcommands().isEmpty()) {
+            error("@Command classes must declare at least one @Subcommand or onCommand handler", element);
+            return Optional.empty();
+        }
 
         return Optional.of(new CommandDefinition(typeElement, model));
     }
@@ -333,16 +337,22 @@ public final class CommandModelReader {
 
     private boolean validateAliases(String name, String[] aliases, Element element) {
         var seenAliases = new HashSet<String>();
+        var normalizedName = normalizeCommandLabel(name);
         for (String alias : aliases) {
             if (alias.isBlank()) {
                 error("@Command aliases must not contain blank values", element);
                 return false;
             }
-            if (alias.equals(name)) {
+            if (!isValidCommandName(alias)) {
+                error("@Command alias contains invalid characters: " + alias, element);
+                return false;
+            }
+            var normalizedAlias = normalizeCommandLabel(alias);
+            if (normalizedAlias.equals(normalizedName)) {
                 error("@Command alias must not be equal to the command name: " + alias, element);
                 return false;
             }
-            if (!seenAliases.add(alias)) {
+            if (!seenAliases.add(normalizedAlias)) {
                 error("Duplicate @Command alias: " + alias, element);
                 return false;
             }
@@ -511,6 +521,10 @@ public final class CommandModelReader {
 
     private boolean isValidCommandName(String name) {
         return name != null && !name.isBlank() && name.chars().allMatch(this::isValidCommandChar);
+    }
+
+    private String normalizeCommandLabel(String name) {
+        return name.toLowerCase(java.util.Locale.ROOT);
     }
 
     private boolean isValidCommandChar(int codePoint) {

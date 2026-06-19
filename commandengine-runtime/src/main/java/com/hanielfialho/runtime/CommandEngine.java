@@ -32,9 +32,6 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class CommandEngine implements AutoCloseable {
 
-    private static final Map<ClassLoader, List<CommandAdapterFactory>> FACTORIES_BY_CLASSLOADER =
-            new ConcurrentHashMap<>();
-
     private final CommandRegistry registry;
     private final BrigadierAdapter brigadier;
     private final CommandExecutor executor;
@@ -45,6 +42,10 @@ public final class CommandEngine implements AutoCloseable {
     private final CommandRateLimiter rateLimiter;
     private final Object owner;
     private final Map<Object, CommandAdapter> adaptersByInstance;
+    private final Map<ClassLoader, List<CommandAdapterFactory>> adapterFactoriesByClassLoader;
+
+    @Nullable
+    private volatile List<CommandAdapterFactory> bootstrapAdapterFactories;
 
     private CommandEngine(
             @NotNull CommandRegistry registry,
@@ -66,6 +67,7 @@ public final class CommandEngine implements AutoCloseable {
         this.rateLimiter = Preconditions.checkNotNull(rateLimiter, "rateLimiter");
         this.owner = Preconditions.checkNotNull(owner, "owner");
         this.adaptersByInstance = Collections.synchronizedMap(new IdentityHashMap<>());
+        this.adapterFactoriesByClassLoader = new ConcurrentHashMap<>();
     }
 
     public static @NotNull Builder builder() {
@@ -101,14 +103,15 @@ public final class CommandEngine implements AutoCloseable {
 
     public static @NotNull CommandEngine create(@NotNull Platform platform) {
         Preconditions.checkNotNull(platform, "platform");
+        CommandTelemetry telemetry = platform.telemetry();
         return new CommandEngine(
                 platform.registry(),
                 platform.brigadier(),
-                new TelemetryCommandExecutor(platform.executor(), platform.telemetry()),
+                instrumentExecutor(platform.executor(), telemetry),
                 platform.argumentResolvers(),
                 platform.scheduler(),
                 platform.messages(),
-                platform.telemetry(),
+                telemetry,
                 platform.rateLimiter(),
                 platform.owner());
     }
@@ -171,10 +174,22 @@ public final class CommandEngine implements AutoCloseable {
 
     public @NotNull CommandEngine unregister(@NotNull CommandAdapter adapter) {
         Preconditions.checkNotNull(adapter, "adapter");
-        adapter.unregister(brigadier);
-        registry.unregister(adapter);
+        RuntimeException failure = null;
+        try {
+            adapter.unregister(brigadier);
+        } catch (RuntimeException exception) {
+            failure = exception;
+        }
+        try {
+            registry.unregister(adapter);
+        } catch (RuntimeException exception) {
+            failure = addSuppressed(failure, exception);
+        }
         synchronized (adaptersByInstance) {
             adaptersByInstance.values().removeIf(registered -> registered == adapter);
+        }
+        if (failure != null) {
+            throw failure;
         }
         return this;
     }
@@ -232,16 +247,40 @@ public final class CommandEngine implements AutoCloseable {
                 + ". Ensure the class is annotated with @Command and compiled with CommandEngineProcessor.");
     }
 
-    private static @NotNull List<CommandAdapterFactory> adapterFactories(@Nullable ClassLoader classLoader) {
+    private @NotNull List<CommandAdapterFactory> adapterFactories(@Nullable ClassLoader classLoader) {
         if (classLoader == null) {
-            return ServiceLoader.load(CommandAdapterFactory.class).stream()
-                    .map(ServiceLoader.Provider::get)
-                    .toList();
+            return bootstrapAdapterFactories();
         }
-        return FACTORIES_BY_CLASSLOADER.computeIfAbsent(
-                classLoader, loader -> ServiceLoader.load(CommandAdapterFactory.class, loader).stream()
-                        .map(ServiceLoader.Provider::get)
-                        .toList());
+        return adapterFactoriesByClassLoader.computeIfAbsent(classLoader, CommandEngine::loadAdapterFactories);
+    }
+
+    private @NotNull List<CommandAdapterFactory> bootstrapAdapterFactories() {
+        List<CommandAdapterFactory> factories = bootstrapAdapterFactories;
+        if (factories != null) {
+            return factories;
+        }
+        factories = loadBootstrapAdapterFactories();
+        bootstrapAdapterFactories = factories;
+        return factories;
+    }
+
+    private static @NotNull List<CommandAdapterFactory> loadBootstrapAdapterFactories() {
+        return ServiceLoader.load(CommandAdapterFactory.class).stream()
+                .map(ServiceLoader.Provider::get)
+                .toList();
+    }
+
+    private static @NotNull List<CommandAdapterFactory> loadAdapterFactories(@NotNull ClassLoader classLoader) {
+        return ServiceLoader.load(CommandAdapterFactory.class, classLoader).stream()
+                .map(ServiceLoader.Provider::get)
+                .toList();
+    }
+
+    private static @NotNull CommandExecutor instrumentExecutor(
+            @NotNull CommandExecutor executor, @NotNull CommandTelemetry telemetry) {
+        Preconditions.checkNotNull(executor, "executor");
+        Preconditions.checkNotNull(telemetry, "telemetry");
+        return telemetry == CommandTelemetry.NOOP ? executor : new TelemetryCommandExecutor(executor, telemetry);
     }
 
     private static RuntimeException addSuppressed(RuntimeException failure, RuntimeException exception) {
@@ -319,7 +358,7 @@ public final class CommandEngine implements AutoCloseable {
         private BrigadierAdapter brigadier;
         private CommandMessages messages = CommandMessages.defaults();
         private Duration asyncTimeout = Duration.ofSeconds(30);
-        private CommandExecutor executor = new VirtualThreadExecutor(messages);
+        private CommandExecutor executor;
         private boolean customExecutor;
         private ArgumentResolverRegistry argumentResolvers = new DefaultArgumentResolverRegistry();
         private CommandScheduler scheduler = CommandScheduler.DIRECT;
@@ -352,9 +391,6 @@ public final class CommandEngine implements AutoCloseable {
 
         public @NotNull Builder messages(@NotNull CommandMessages messages) {
             this.messages = Preconditions.checkNotNull(messages, "messages");
-            if (!customExecutor && executor instanceof VirtualThreadExecutor) {
-                this.executor = new VirtualThreadExecutor(messages, asyncTimeout);
-            }
             return this;
         }
 
@@ -364,9 +400,6 @@ public final class CommandEngine implements AutoCloseable {
                 throw new IllegalArgumentException("asyncTimeout must be positive");
             }
             this.asyncTimeout = asyncTimeout;
-            if (!customExecutor && executor instanceof VirtualThreadExecutor) {
-                this.executor = new VirtualThreadExecutor(messages, asyncTimeout);
-            }
             return this;
         }
 
@@ -405,10 +438,12 @@ public final class CommandEngine implements AutoCloseable {
 
         public @NotNull CommandEngine build() {
             Preconditions.checkNotNull(brigadier, "brigadier");
+            CommandExecutor selectedExecutor =
+                    customExecutor ? executor : new VirtualThreadExecutor(messages, asyncTimeout);
             return new CommandEngine(
                     registry,
                     brigadier,
-                    new TelemetryCommandExecutor(executor, telemetry),
+                    instrumentExecutor(selectedExecutor, telemetry),
                     argumentResolvers,
                     scheduler,
                     messages,

@@ -2,10 +2,12 @@ package com.hanielfialho.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.hanielfialho.api.command.CommandPath;
 import com.hanielfialho.api.source.CommandSource;
 import com.hanielfialho.runtime.internal.rate.CaffeineCommandRateLimiter;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
 final class CaffeineCommandRateLimiterTest {
@@ -36,34 +38,50 @@ final class CaffeineCommandRateLimiterTest {
     }
 
     @Test
-    void counterResetsAfterWindow() throws Exception {
-        var limiter = new CaffeineCommandRateLimiter(Duration.ofMillis(50), 1, 100);
+    void counterResetsAfterWindow() {
+        var ticker = new FakeTicker();
+        var limiter = new CaffeineCommandRateLimiter(Duration.ofMillis(50), 1, 100, ticker);
         var source = new TestSource("player");
 
         assertThat(limiter.tryAcquire(source, PATH)).isTrue();
         assertThat(limiter.tryAcquire(source, PATH)).isFalse();
 
-        Thread.sleep(100);
+        ticker.advance(Duration.ofMillis(51));
 
         assertThat(limiter.tryAcquire(source, PATH)).isTrue();
     }
 
     @Test
-    void rejectedAttemptsDoNotExtendWindow() throws Exception {
-        var limiter = new CaffeineCommandRateLimiter(Duration.ofMillis(300), 1, 100);
+    void rejectedAttemptsDoNotExtendWindow() {
+        var ticker = new FakeTicker();
+        var limiter = new CaffeineCommandRateLimiter(Duration.ofMillis(300), 1, 100, ticker);
         var source = new TestSource("player");
 
         assertThat(limiter.tryAcquire(source, PATH)).isTrue();
 
         for (int i = 0; i < 10; i++) {
             assertThat(limiter.tryAcquire(source, PATH)).isFalse();
-            Thread.sleep(10);
+            ticker.advance(Duration.ofMillis(10));
         }
 
         assertThat(limiter.tryAcquire(source, PATH)).isFalse();
 
-        Thread.sleep(250);
+        ticker.advance(Duration.ofMillis(201));
         assertThat(limiter.tryAcquire(source, PATH)).isTrue();
+    }
+
+    private static final class FakeTicker implements Ticker {
+
+        private final AtomicLong nanos = new AtomicLong();
+
+        @Override
+        public long read() {
+            return nanos.get();
+        }
+
+        private void advance(Duration duration) {
+            nanos.addAndGet(duration.toNanos());
+        }
     }
 
     private static final class TestSource implements CommandSource {

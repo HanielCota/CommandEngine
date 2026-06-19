@@ -123,6 +123,9 @@ subprojects {
   tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
     options.release.set(25)
+    if (project.name == "commandengine-api") {
+      options.compilerArgs.add("-Xlint:-requires-transitive-automatic")
+    }
     if (name == "compileJava" && project.file("src/main/java/module-info.java").exists()) {
       doFirst {
         options.compilerArgs.addAll(listOf("--module-path", classpath.asPath))

@@ -8,5 +8,6 @@ module com.hanielfialho.test {
     requires com.hanielfialho.api;
     requires com.hanielfialho.runtime;
     requires brigadier;
+    requires java.logging;
     requires static org.jetbrains.annotations;
 }

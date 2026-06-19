@@ -23,8 +23,7 @@ final class WorldArgumentResolverTest {
         var dispatcher = new CommandDispatcher<Object>();
 
         dispatcher.register(LiteralArgumentBuilder.<Object>literal("root")
-                .then(RequiredArgumentBuilder.<Object, String>argument(
-                                "world", (ArgumentType<String>) resolver.argumentType())
+                .then(RequiredArgumentBuilder.<Object, String>argument("world", worldArgumentType(resolver))
                         .executes(context -> {
                             captured.set(context);
                             return 1;
@@ -42,8 +41,7 @@ final class WorldArgumentResolverTest {
         var dispatcher = new CommandDispatcher<Object>();
 
         dispatcher.register(LiteralArgumentBuilder.<Object>literal("root")
-                .then(RequiredArgumentBuilder.<Object, String>argument(
-                                "world", (ArgumentType<String>) resolver.argumentType())
+                .then(RequiredArgumentBuilder.<Object, String>argument("world", worldArgumentType(resolver))
                         .executes(context -> {
                             captured.set(context);
                             return 1;
@@ -61,5 +59,10 @@ final class WorldArgumentResolverTest {
                 World.class.getClassLoader(),
                 new Class<?>[] {World.class},
                 (proxy, method, args) -> "getName".equals(method.getName()) ? name : null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ArgumentType<String> worldArgumentType(WorldArgumentResolver resolver) {
+        return (ArgumentType<String>) resolver.argumentType();
     }
 }

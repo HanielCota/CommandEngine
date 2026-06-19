@@ -28,8 +28,7 @@ final class LocationArgumentResolverTest {
         var dispatcher = new CommandDispatcher<CommandSource>();
 
         dispatcher.register(LiteralArgumentBuilder.<CommandSource>literal("root")
-                .then(RequiredArgumentBuilder.<CommandSource, String>argument(
-                                "loc", (ArgumentType<String>) resolver.argumentType())
+                .then(RequiredArgumentBuilder.<CommandSource, String>argument("loc", locationArgumentType(resolver))
                         .executes(context -> {
                             captured.set(context);
                             return 1;
@@ -51,8 +50,7 @@ final class LocationArgumentResolverTest {
         var dispatcher = new CommandDispatcher<CommandSource>();
 
         dispatcher.register(LiteralArgumentBuilder.<CommandSource>literal("root")
-                .then(RequiredArgumentBuilder.<CommandSource, String>argument(
-                                "loc", (ArgumentType<String>) resolver.argumentType())
+                .then(RequiredArgumentBuilder.<CommandSource, String>argument("loc", locationArgumentType(resolver))
                         .executes(context -> {
                             captured.set(context);
                             return 1;
@@ -72,8 +70,7 @@ final class LocationArgumentResolverTest {
         var dispatcher = new CommandDispatcher<CommandSource>();
 
         dispatcher.register(LiteralArgumentBuilder.<CommandSource>literal("root")
-                .then(RequiredArgumentBuilder.<CommandSource, String>argument(
-                                "loc", (ArgumentType<String>) resolver.argumentType())
+                .then(RequiredArgumentBuilder.<CommandSource, String>argument("loc", locationArgumentType(resolver))
                         .executes(context -> {
                             captured.set(context);
                             return 1;
@@ -84,6 +81,11 @@ final class LocationArgumentResolverTest {
         assertThatThrownBy(() -> resolver.resolve(captured.get(), "loc"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Location coordinate must be a number");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ArgumentType<String> locationArgumentType(LocationArgumentResolver resolver) {
+        return (ArgumentType<String>) resolver.argumentType();
     }
 
     @SuppressWarnings("unchecked")

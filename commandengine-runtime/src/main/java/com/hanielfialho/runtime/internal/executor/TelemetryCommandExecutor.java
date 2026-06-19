@@ -7,9 +7,13 @@ import com.hanielfialho.api.source.CommandSource;
 import com.hanielfialho.api.telemetry.CommandTelemetry;
 import com.hanielfialho.runtime.util.Preconditions;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.jetbrains.annotations.NotNull;
 
 public final class TelemetryCommandExecutor implements CommandExecutor, AutoCloseable {
+
+    private static final Logger LOGGER = Logger.getLogger(TelemetryCommandExecutor.class.getName());
 
     private final CommandExecutor delegate;
     private final CommandTelemetry telemetry;
@@ -45,7 +49,7 @@ public final class TelemetryCommandExecutor implements CommandExecutor, AutoClos
         long started = System.nanoTime();
         return delegate.executeAsync(source, path, command).whenComplete((result, throwable) -> {
             if (throwable != null) {
-                telemetry.recordFailure(path, "EXCEPTION", throwable);
+                recordTelemetry(() -> telemetry.recordFailure(path, "EXCEPTION", throwable));
                 return;
             }
             record(path, result, started, true);
@@ -61,9 +65,17 @@ public final class TelemetryCommandExecutor implements CommandExecutor, AutoClos
 
     private void record(CommandPath path, CommandResult result, long started, boolean async) {
         long elapsed = System.nanoTime() - started;
-        telemetry.recordExecution(path, elapsed, async);
+        recordTelemetry(() -> telemetry.recordExecution(path, elapsed, async));
         if (result instanceof CommandResult.Failure failure) {
-            telemetry.recordFailure(path, failure.reason().name());
+            recordTelemetry(() -> telemetry.recordFailure(path, failure.reason().name()));
+        }
+    }
+
+    private void recordTelemetry(Runnable telemetryCall) {
+        try {
+            telemetryCall.run();
+        } catch (RuntimeException exception) {
+            LOGGER.log(Level.FINE, exception, () -> "Command telemetry callback failed");
         }
     }
 }

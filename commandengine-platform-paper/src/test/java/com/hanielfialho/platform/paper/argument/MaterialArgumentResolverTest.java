@@ -21,8 +21,7 @@ final class MaterialArgumentResolverTest {
         var dispatcher = new CommandDispatcher<Object>();
 
         dispatcher.register(LiteralArgumentBuilder.<Object>literal("root")
-                .then(RequiredArgumentBuilder.<Object, String>argument(
-                                "material", (ArgumentType<String>) resolver.argumentType())
+                .then(RequiredArgumentBuilder.<Object, String>argument("material", materialArgumentType(resolver))
                         .executes(context -> {
                             captured.set(context);
                             return 1;
@@ -40,8 +39,7 @@ final class MaterialArgumentResolverTest {
         var dispatcher = new CommandDispatcher<Object>();
 
         dispatcher.register(LiteralArgumentBuilder.<Object>literal("root")
-                .then(RequiredArgumentBuilder.<Object, String>argument(
-                                "material", (ArgumentType<String>) resolver.argumentType())
+                .then(RequiredArgumentBuilder.<Object, String>argument("material", materialArgumentType(resolver))
                         .executes(context -> {
                             captured.set(context);
                             return 1;
@@ -52,5 +50,10 @@ final class MaterialArgumentResolverTest {
         assertThatThrownBy(() -> resolver.resolve(captured.get(), "material"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown material: unobtainium");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ArgumentType<String> materialArgumentType(MaterialArgumentResolver resolver) {
+        return (ArgumentType<String>) resolver.argumentType();
     }
 }

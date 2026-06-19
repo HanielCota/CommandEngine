@@ -160,7 +160,8 @@ final class AdapterTreeRenderer {
             String variable = "argument" + subIndex + "_" + argIndex;
             argumentVariables.add(variable);
             code.append("        ")
-                    .append(new AdapterExecutionRenderer(model).argumentBuilderDeclaration(parameter, variable))
+                    .append(new AdapterExecutionRenderer(model)
+                            .argumentBuilderDeclaration(parameter, variable, subIndex))
                     .append(";\n");
 
             if (parameter.isOptional()) {

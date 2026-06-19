@@ -21,70 +21,96 @@ final class CommandEngineRegistrationTest {
     @Test
     void failedAdapterRegistrationIsRemovedFromRegistryAndDispatcher() {
         var brigadier = new TestBrigadierAdapter();
-        var engine = CommandEngine.builder()
+        try (var engine = CommandEngine.builder()
                 .brigadier(brigadier)
                 .executor(new SyncExecutor())
                 .owner(this)
-                .build();
-        var adapter = new FailingAdapter("broken");
+                .build()) {
+            var adapter = new FailingAdapter("broken");
 
-        assertThatThrownBy(() -> engine.register(adapter))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("boom");
+            assertThatThrownBy(() -> engine.register(adapter))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("boom");
 
-        assertThat(engine.registry().getAdapters()).isEmpty();
-        assertThat(brigadier.getDispatcher().getRoot().getChild("broken")).isNull();
-        assertThat(adapter.unregistered).isTrue();
+            assertThat(engine.registry().getAdapters()).isEmpty();
+            assertThat(brigadier.getDispatcher().getRoot().getChild("broken")).isNull();
+            assertThat(adapter.unregistered).isTrue();
+        }
     }
 
     @Test
     void unregisterAllKeepsRegistryAndDispatcherConsistentForAllAdapters() {
         var brigadier = new TestBrigadierAdapter();
         var registry = CommandEngine.defaultRegistry();
-        var engine = CommandEngine.builder()
+        try (var engine = CommandEngine.builder()
                 .registry(registry)
                 .brigadier(brigadier)
                 .executor(new SyncExecutor())
                 .owner("engine")
-                .build();
-        var adapter = new SimpleAdapter("external");
+                .build()) {
+            var adapter = new SimpleAdapter("external");
 
-        registry.register("external-owner", adapter);
-        adapter.register(brigadier);
+            registry.register("external-owner", adapter);
+            adapter.register(brigadier);
 
-        engine.unregisterAll();
+            engine.unregisterAll();
 
-        assertThat(registry.getAdapters()).isEmpty();
-        assertThat(brigadier.getDispatcher().getRoot().getChild("external")).isNull();
-        assertThat(adapter.unregistered).isTrue();
+            assertThat(registry.getAdapters()).isEmpty();
+            assertThat(brigadier.getDispatcher().getRoot().getChild("external")).isNull();
+            assertThat(adapter.unregistered).isTrue();
+        }
     }
 
     @Test
     void unregisterAllProceedsDespitePartialFailures() {
         var brigadier = new TestBrigadierAdapter();
         var registry = CommandEngine.defaultRegistry();
-        var engine = CommandEngine.builder()
+        try (var engine = CommandEngine.builder()
                 .registry(registry)
                 .brigadier(brigadier)
                 .executor(new SyncExecutor())
                 .owner("engine")
-                .build();
-        var first = new FailingUnregisterAdapter("first");
-        var second = new SimpleAdapter("second");
+                .build()) {
+            var first = new FailingUnregisterAdapter("first");
+            var second = new SimpleAdapter("second");
 
-        registry.register("owner", first);
-        first.register(brigadier);
-        registry.register("owner", second);
-        second.register(brigadier);
+            registry.register("owner", first);
+            first.register(brigadier);
+            registry.register("owner", second);
+            second.register(brigadier);
 
-        assertThatThrownBy(engine::unregisterAll)
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("unregister first");
+            assertThatThrownBy(engine::unregisterAll)
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("unregister first");
 
-        assertThat(registry.getAdapters()).isEmpty();
-        assertThat(brigadier.getDispatcher().getRoot().getChild("first")).isNull();
-        assertThat(brigadier.getDispatcher().getRoot().getChild("second")).isNull();
-        assertThat(second.unregistered).isTrue();
+            assertThat(registry.getAdapters()).isEmpty();
+            assertThat(brigadier.getDispatcher().getRoot().getChild("first")).isNull();
+            assertThat(brigadier.getDispatcher().getRoot().getChild("second")).isNull();
+            assertThat(second.unregistered).isTrue();
+        }
+    }
+
+    @Test
+    void unregisterAdapterCleansRegistryEvenWhenAdapterUnregisterFails() {
+        var brigadier = new TestBrigadierAdapter();
+        var registry = CommandEngine.defaultRegistry();
+        try (var engine = CommandEngine.builder()
+                .registry(registry)
+                .brigadier(brigadier)
+                .executor(new SyncExecutor())
+                .owner("engine")
+                .build()) {
+            var adapter = new FailingUnregisterAdapter("failing");
+
+            engine.register(adapter);
+
+            assertThatThrownBy(() -> engine.unregister(adapter))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("unregister failing");
+
+            assertThat(registry.getAdapters()).isEmpty();
+            assertThat(brigadier.getDispatcher().getRoot().getChild("failing")).isNull();
+        }
     }
 
     @Test
@@ -92,18 +118,17 @@ final class CommandEngineRegistrationTest {
         var brigadier = new TestBrigadierAdapter();
         var registry = CommandEngine.defaultRegistry();
         var closableExecutor = new ClosableSyncExecutor();
-        var engine = CommandEngine.builder()
+        try (var engine = CommandEngine.builder()
                 .registry(registry)
                 .brigadier(brigadier)
                 .executor(closableExecutor)
                 .owner("engine")
-                .build();
-        var adapter = new SimpleAdapter("external");
+                .build()) {
+            var adapter = new SimpleAdapter("external");
 
-        registry.register("owner", adapter);
-        adapter.register(brigadier);
-
-        engine.close();
+            registry.register("owner", adapter);
+            adapter.register(brigadier);
+        }
 
         assertThat(registry.getAdapters()).isEmpty();
         assertThat(closableExecutor.closed).isTrue();

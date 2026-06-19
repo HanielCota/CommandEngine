@@ -106,23 +106,42 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
     @Override
     public void unregister(@NotNull String name) {
         Preconditions.checkNotNull(name, "name");
-        removeRootNode(name);
+        String normalized = normalize(name);
+        String commandName = null;
         Command command = registeredCommands.get(name);
-        if (command == null) {
-            String normalized = normalize(name);
+        if (command != null) {
+            commandName = name;
+        } else {
             for (Map.Entry<String, Command> entry : registeredCommands.entrySet()) {
-                if (normalize(entry.getValue().getName()).equals(normalized)) {
+                if (normalize(entry.getKey()).equals(normalized)) {
+                    commandName = entry.getKey();
+                    command = entry.getValue();
+                    break;
+                }
+                String canonicalName = normalize(entry.getValue().getName());
+                if (canonicalName.equals(normalized)) {
+                    commandName = entry.getKey();
                     command = entry.getValue();
                     break;
                 }
                 List<String> aliases = entry.getValue().getAliases();
                 if (aliases != null && aliases.stream().map(this::normalize).anyMatch(normalized::equals)) {
+                    commandName = entry.getKey();
                     command = entry.getValue();
                     break;
                 }
             }
         }
-        registeredCommands.remove(name);
+        if (commandName == null) {
+            removeRootNode(name);
+            return;
+        }
+
+        removeRootNode(commandName);
+        registeredCommands.remove(commandName);
+        if (command == null) {
+            return;
+        }
         CommandMap currentCommandMap = commandMap;
         if (command == null || currentCommandMap == null) {
             return;

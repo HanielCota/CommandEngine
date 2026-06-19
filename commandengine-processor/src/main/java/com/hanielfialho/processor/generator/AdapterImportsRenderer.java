@@ -18,6 +18,7 @@ final class AdapterImportsRenderer {
         code.append("import com.mojang.brigadier.builder.RequiredArgumentBuilder;\n");
         code.append("import com.mojang.brigadier.context.CommandContext;\n");
         code.append("import com.mojang.brigadier.suggestion.SuggestionsBuilder;\n");
+        code.append("import com.mojang.brigadier.tree.ArgumentCommandNode;\n");
         code.append("import com.mojang.brigadier.tree.LiteralCommandNode;\n");
         code.append("import com.hanielfialho.api.argument.ArgumentResolverRegistry;\n");
         code.append("import com.hanielfialho.api.argument.ArgumentTypeResolver;\n");
@@ -37,6 +38,9 @@ final class AdapterImportsRenderer {
         code.append("import com.hanielfialho.api.telemetry.CommandTelemetry;\n");
         code.append("import java.util.List;\n");
         code.append("import java.util.Objects;\n");
-        code.append("import java.util.concurrent.CompletableFuture;\n\n");
+        code.append("import java.util.concurrent.CompletableFuture;\n");
+        code.append("import java.util.logging.Level;\n");
+        code.append("import java.util.logging.Logger;\n");
+        code.append("import java.util.function.Supplier;\n\n");
     }
 }

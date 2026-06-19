@@ -17,10 +17,17 @@ public final class PaperCommandScheduler implements CommandScheduler {
     @Override
     public void execute(@NotNull Runnable command) {
         Objects.requireNonNull(command, "command");
+        if (!plugin.isEnabled()) {
+            return;
+        }
         if (Bukkit.isPrimaryThread()) {
             command.run();
             return;
         }
-        plugin.getServer().getScheduler().runTask(plugin, command);
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (plugin.isEnabled()) {
+                command.run();
+            }
+        });
     }
 }

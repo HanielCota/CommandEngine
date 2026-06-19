@@ -9,6 +9,7 @@ import com.hanielfialho.runtime.internal.executor.VirtualThreadExecutor;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Test;
 
 final class CommandExecutorSecurityTest {
@@ -80,11 +81,11 @@ final class CommandExecutorSecurityTest {
 
             CommandResult result = executor.executeAsync(new TestSource(), () -> {
                         started.countDown();
-                        try {
-                            Thread.sleep(TimeUnit.SECONDS.toMillis(10));
-                        } catch (InterruptedException exception) {
+                        while (!Thread.currentThread().isInterrupted()) {
+                            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(10));
+                        }
+                        if (Thread.currentThread().isInterrupted()) {
                             interrupted.countDown();
-                            Thread.currentThread().interrupt();
                         }
                     })
                     .get(1, TimeUnit.SECONDS);

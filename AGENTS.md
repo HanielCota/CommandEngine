@@ -152,7 +152,7 @@ layout normal do projeto e nao deve ser incluida em commits sem confirmacao expl
 
 ## Referencias Rapidas
 
-- Release atual documentado: `v0.1.0-alpha.2`.
+- Release atual documentado: `v0.1.0-alpha.5`.
 - Java baseline: 25.
 - Gradle wrapper: 9.5.0.
 - Paper API: `1.21.4-R0.1-SNAPSHOT`.

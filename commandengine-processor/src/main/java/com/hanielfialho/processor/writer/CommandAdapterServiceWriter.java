@@ -18,10 +18,6 @@ public final class CommandAdapterServiceWriter {
     }
 
     public void write(Set<String> generatedFactories) {
-        if (generatedFactories.isEmpty()) {
-            return;
-        }
-
         try {
             var file = processingEnv.getFiler().createResource(StandardLocation.CLASS_OUTPUT, "", SERVICE_FILE);
             try (Writer writer = file.openWriter()) {

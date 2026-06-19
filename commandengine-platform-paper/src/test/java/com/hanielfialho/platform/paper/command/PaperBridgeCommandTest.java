@@ -12,6 +12,7 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import org.bukkit.command.CommandSender;
 import org.junit.jupiter.api.Test;
@@ -76,6 +77,18 @@ final class PaperBridgeCommandTest {
 
         assertThat(command.tabComplete(sender(true).sender(), "root", new String[] {"s"}))
                 .containsExactly("spawn");
+    }
+
+    @Test
+    void returnsEmptyTabCompletionsWhenSuggestionFutureTimesOut() {
+        var dispatcher = new CommandDispatcher<CommandSource>();
+        dispatcher.register(LiteralArgumentBuilder.<CommandSource>literal("root")
+                .then(RequiredArgumentBuilder.<CommandSource, String>argument("name", StringArgumentType.word())
+                        .suggests((context, builder) -> new CompletableFuture<>())));
+        var command = bridge(dispatcher, "");
+
+        assertThat(command.tabComplete(sender(true).sender(), "root", new String[] {"s"}))
+                .isEmpty();
     }
 
     private static PaperBridgeCommand bridge(CommandDispatcher<CommandSource> dispatcher, String permission) {

@@ -21,7 +21,7 @@ final class AdapterExecutionRenderer {
         }
     }
 
-    String argumentBuilderDeclaration(ParameterModel parameter, String variable) {
+    String argumentBuilderDeclaration(ParameterModel parameter, String variable, int subIndex) {
         String type = argumentBuilderType(parameter);
         return "RequiredArgumentBuilder<CommandSource, "
                 + type
@@ -34,7 +34,7 @@ final class AdapterExecutionRenderer {
                 + "\", "
                 + argumentTypeExpression(parameter)
                 + ")"
-                + suggestionsExpression(parameter);
+                + suggestionsExpression(parameter, subIndex);
     }
 
     private void renderExecuteMethod(StringBuilder code, SubcommandModel subcommand, int subIndex) {
@@ -229,11 +229,13 @@ final class AdapterExecutionRenderer {
         code.append("    }\n\n");
     }
 
-    private String suggestionsExpression(ParameterModel parameter) {
+    private String suggestionsExpression(ParameterModel parameter, int subIndex) {
         if (parameter.getSuggestionMethodName() == null) {
             return "";
         }
-        return "\n            .suggests((context, builder) -> suggestFrom(builder, instance."
+        return "\n            .suggests((context, builder) -> suggestFrom(builder, telemetry, COMMAND_PATH_"
+                + subIndex
+                + ", () -> instance."
                 + parameter.getSuggestionMethodName()
                 + "()))";
     }

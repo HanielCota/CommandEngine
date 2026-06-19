@@ -4,6 +4,40 @@ All notable changes to CommandEngine are documented here.
 
 The project follows semantic versioning once the public API becomes stable. Alpha releases may still contain breaking API changes.
 
+## v0.1.0-alpha.5 - 2026-06-19
+
+### Added
+
+- Added compile-time validation that rejects `@Command` classes without a root handler or subcommand.
+- Added case-insensitive validation for command aliases, including duplicate aliases and aliases equal to the command name.
+- Added telemetry coverage for generated suggestion providers.
+- Added deterministic rate limiter tests through an injectable Caffeine ticker.
+- Added regression tests for telemetry callback failures, unregister cleanup and Paper tab completion timeouts.
+
+### Changed
+
+- Improved generated adapter helpers so optional argument detection uses parsed Brigadier nodes instead of exception-driven lookups.
+- Improved generated vararg/list argument splitting to avoid regex splitting and preserve predictable whitespace handling.
+- Improved runtime factory discovery by making factory caches instance-scoped instead of global per class loader.
+- Improved runtime executor setup so telemetry is skipped when `CommandTelemetry.NOOP` is configured.
+- Improved lifecycle cleanup so adapter unregister failures do not leave registry entries behind.
+- Improved Paper unregister handling for aliases, canonical command names and normalized labels.
+- Reduced Paper tab completion wait time to keep stalled suggestion futures from blocking server completion for several seconds.
+- Updated test harnesses to close engines consistently.
+
+### Fixed
+
+- Fixed telemetry callback exceptions so they no longer fail successful command execution.
+- Fixed scheduler callbacks on Paper so disabled plugins do not enqueue or run delayed command callbacks.
+- Fixed interrupt-sensitive async timeout tests to avoid sleep timing flakiness.
+- Fixed JPMS module declarations for downstream consumers that require API/runtime transitively.
+- Fixed documentation around Spotless build behavior.
+
+### Notes
+
+- This is an alpha release. Public API compatibility is not guaranteed.
+- Local validation passed with `.\gradlew.bat spotlessApply spotlessCheck build --stacktrace`.
+
 ## v0.1.0-alpha.4 - 2026-06-19
 
 ### Added
