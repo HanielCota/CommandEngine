@@ -10,12 +10,14 @@ import com.hanielfialho.api.rate.CommandRateLimiter;
 import com.hanielfialho.api.registry.BrigadierAdapter;
 import com.hanielfialho.api.registry.CommandRegistry;
 import com.hanielfialho.api.scheduler.CommandScheduler;
+import com.hanielfialho.api.suggestion.SuggestionExecutor;
 import com.hanielfialho.api.telemetry.CommandTelemetry;
 import com.hanielfialho.runtime.internal.argument.DefaultArgumentResolverRegistry;
 import com.hanielfialho.runtime.internal.executor.TelemetryCommandExecutor;
 import com.hanielfialho.runtime.internal.executor.VirtualThreadExecutor;
 import com.hanielfialho.runtime.internal.rate.CaffeineCommandRateLimiter;
 import com.hanielfialho.runtime.internal.registry.DefaultCommandRegistry;
+import com.hanielfialho.runtime.internal.suggestion.VirtualThreadSuggestionExecutor;
 import com.hanielfialho.runtime.util.Preconditions;
 import java.time.Duration;
 import java.util.Collections;
@@ -40,6 +42,7 @@ public final class CommandEngine implements AutoCloseable {
     private final CommandMessages messages;
     private final CommandTelemetry telemetry;
     private final CommandRateLimiter rateLimiter;
+    private final SuggestionExecutor suggestionExecutor;
     private final Object owner;
     private final Map<Object, CommandAdapter> adaptersByInstance;
     private final Map<ClassLoader, List<CommandAdapterFactory>> adapterFactoriesByClassLoader;
@@ -56,6 +59,7 @@ public final class CommandEngine implements AutoCloseable {
             @NotNull CommandMessages messages,
             @NotNull CommandTelemetry telemetry,
             @NotNull CommandRateLimiter rateLimiter,
+            @NotNull SuggestionExecutor suggestionExecutor,
             @NotNull Object owner) {
         this.registry = Preconditions.checkNotNull(registry, "registry");
         this.brigadier = Preconditions.checkNotNull(brigadier, "brigadier");
@@ -65,6 +69,7 @@ public final class CommandEngine implements AutoCloseable {
         this.messages = Preconditions.checkNotNull(messages, "messages");
         this.telemetry = Preconditions.checkNotNull(telemetry, "telemetry");
         this.rateLimiter = Preconditions.checkNotNull(rateLimiter, "rateLimiter");
+        this.suggestionExecutor = Preconditions.checkNotNull(suggestionExecutor, "suggestionExecutor");
         this.owner = Preconditions.checkNotNull(owner, "owner");
         this.adaptersByInstance = Collections.synchronizedMap(new IdentityHashMap<>());
         this.adapterFactoriesByClassLoader = new ConcurrentHashMap<>();
@@ -101,6 +106,14 @@ public final class CommandEngine implements AutoCloseable {
                 config.rateLimitWindow(), config.rateLimitMaxExecutions(), config.rateLimitMaximumSize());
     }
 
+    public static @NotNull SuggestionExecutor virtualThreadSuggestionExecutor() {
+        return new VirtualThreadSuggestionExecutor();
+    }
+
+    public static @NotNull SuggestionExecutor virtualThreadSuggestionExecutor(@NotNull Duration timeout) {
+        return new VirtualThreadSuggestionExecutor(timeout);
+    }
+
     public static @NotNull CommandEngine create(@NotNull Platform platform) {
         Preconditions.checkNotNull(platform, "platform");
         CommandTelemetry telemetry = platform.telemetry();
@@ -113,6 +126,7 @@ public final class CommandEngine implements AutoCloseable {
                 platform.messages(),
                 telemetry,
                 platform.rateLimiter(),
+                platform.suggestionExecutor(),
                 platform.owner());
     }
 
@@ -238,7 +252,14 @@ public final class CommandEngine implements AutoCloseable {
         for (var factory : factories) {
             if (factory.supports(commandInstance)) {
                 return factory.createAdapter(
-                        commandInstance, executor, argumentResolvers, scheduler, messages, telemetry, rateLimiter);
+                        commandInstance,
+                        executor,
+                        argumentResolvers,
+                        scheduler,
+                        messages,
+                        telemetry,
+                        rateLimiter,
+                        suggestionExecutor);
             }
         }
 
@@ -307,6 +328,14 @@ public final class CommandEngine implements AutoCloseable {
                         failure, new IllegalStateException("Failed to close command executor", exception));
             }
         }
+        if (suggestionExecutor instanceof AutoCloseable closeable) {
+            try {
+                closeable.close();
+            } catch (Exception exception) {
+                failure = addSuppressed(
+                        failure, new IllegalStateException("Failed to close suggestion executor", exception));
+            }
+        }
         if (failure != null) {
             throw failure;
         }
@@ -349,6 +378,11 @@ public final class CommandEngine implements AutoCloseable {
         }
 
         @NotNull
+        default SuggestionExecutor suggestionExecutor() {
+            return SuggestionExecutor.DIRECT;
+        }
+
+        @NotNull
         Object owner();
     }
 
@@ -364,6 +398,8 @@ public final class CommandEngine implements AutoCloseable {
         private CommandScheduler scheduler = CommandScheduler.DIRECT;
         private CommandTelemetry telemetry = CommandTelemetry.NOOP;
         private CommandRateLimiter rateLimiter = CommandRateLimiter.NONE;
+        private SuggestionExecutor suggestionExecutor;
+        private boolean customSuggestionExecutor;
         private Object owner = this;
 
         private Builder() {}
@@ -413,6 +449,12 @@ public final class CommandEngine implements AutoCloseable {
             return this;
         }
 
+        public @NotNull Builder suggestionExecutor(@NotNull SuggestionExecutor suggestionExecutor) {
+            this.suggestionExecutor = Preconditions.checkNotNull(suggestionExecutor, "suggestionExecutor");
+            this.customSuggestionExecutor = true;
+            return this;
+        }
+
         public @NotNull Builder config(@NotNull CommandEngineConfig config) {
             Preconditions.checkNotNull(config, "config");
             messages(config.messages());
@@ -440,6 +482,8 @@ public final class CommandEngine implements AutoCloseable {
             Preconditions.checkNotNull(brigadier, "brigadier");
             CommandExecutor selectedExecutor =
                     customExecutor ? executor : new VirtualThreadExecutor(messages, asyncTimeout);
+            SuggestionExecutor selectedSuggestionExecutor =
+                    customSuggestionExecutor ? suggestionExecutor : new VirtualThreadSuggestionExecutor(asyncTimeout);
             return new CommandEngine(
                     registry,
                     brigadier,
@@ -449,6 +493,7 @@ public final class CommandEngine implements AutoCloseable {
                     messages,
                     telemetry,
                     rateLimiter,
+                    selectedSuggestionExecutor,
                     owner);
         }
     }

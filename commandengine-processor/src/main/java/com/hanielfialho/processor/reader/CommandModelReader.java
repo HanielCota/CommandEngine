@@ -15,6 +15,7 @@ import com.hanielfialho.processor.model.CommandDefinition;
 import com.hanielfialho.processor.model.CommandModel;
 import com.hanielfialho.processor.model.ParameterModel;
 import com.hanielfialho.processor.model.SubcommandModel;
+import com.hanielfialho.processor.model.SuggestionMethodModel;
 import com.hanielfialho.processor.resolver.SuggestionMethodResolver;
 import com.hanielfialho.processor.validation.SupportedCommandTypes;
 import java.util.HashSet;
@@ -90,7 +91,7 @@ public final class CommandModelReader {
     }
 
     private Optional<SubcommandModel> readSubcommand(
-            Element element, String commandPermission, Map<String, String> suggestionMethods) {
+            Element element, String commandPermission, Map<String, SuggestionMethodModel> suggestionMethods) {
         if (element.getKind() != ElementKind.METHOD) {
             return Optional.empty();
         }
@@ -172,7 +173,7 @@ public final class CommandModelReader {
     private boolean readParameter(
             VariableElement parameter,
             SubcommandModel subcommand,
-            Map<String, String> suggestionMethods,
+            Map<String, SuggestionMethodModel> suggestionMethods,
             Suggestions methodSuggestions,
             Set<String> parameterNames,
             Set<Character> shorthandFlags) {
@@ -245,8 +246,10 @@ public final class CommandModelReader {
         if (optional != null
                 && kind == ParameterModel.Kind.ARGUMENT
                 && !SupportedCommandTypes.isBuiltInArgumentType(typeName)) {
-            error("@Optional is only supported for built-in argument types and string sequences", parameter);
-            return false;
+            if (optional.defaultValue().isBlank()) {
+                error("@Optional defaultValue is required for custom argument types", parameter);
+                return false;
+            }
         }
         if (optional != null
                 && kind == ParameterModel.Kind.ARGUMENT
@@ -304,14 +307,17 @@ public final class CommandModelReader {
         }
 
         String suggestionMethodName = null;
+        boolean asyncSuggestions = false;
         if (kind == ParameterModel.Kind.ARGUMENT) {
             var suggestionName = suggestionName(arg, suggestions, methodSuggestions);
             if (!suggestionName.isBlank()) {
-                suggestionMethodName = suggestionMethods.get(suggestionName);
-                if (suggestionMethodName == null) {
+                var suggestionMethod = suggestionMethods.get(suggestionName);
+                if (suggestionMethod == null) {
                     error("No @SuggestionProvider found for suggestions: " + suggestionName, parameter);
                     return false;
                 }
+                suggestionMethodName = suggestionMethod.methodName();
+                asyncSuggestions = suggestionMethod.async();
             }
         }
 
@@ -331,7 +337,8 @@ public final class CommandModelReader {
                 minLength,
                 maxLength,
                 flag == null ? '\0' : flag.shorthand(),
-                suggestionMethodName));
+                suggestionMethodName,
+                asyncSuggestions));
         return true;
     }
 

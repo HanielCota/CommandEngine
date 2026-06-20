@@ -35,6 +35,7 @@ final class AdapterImportsRenderer {
         code.append("import com.hanielfialho.api.result.FailureReason;\n");
         code.append("import com.hanielfialho.api.scheduler.CommandScheduler;\n");
         code.append("import com.hanielfialho.api.source.CommandSource;\n");
+        code.append("import com.hanielfialho.api.suggestion.SuggestionExecutor;\n");
         code.append("import com.hanielfialho.api.telemetry.CommandTelemetry;\n");
         code.append("import java.util.List;\n");
         code.append("import java.util.Objects;\n");

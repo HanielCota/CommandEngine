@@ -235,6 +235,8 @@ final class AdapterExecutionRenderer {
         }
         return "\n            .suggests((context, builder) -> suggestFrom(builder, telemetry, COMMAND_PATH_"
                 + subIndex
+                + ", suggestionExecutor, "
+                + parameter.isAsyncSuggestions()
                 + ", () -> instance."
                 + parameter.getSuggestionMethodName()
                 + "()))";

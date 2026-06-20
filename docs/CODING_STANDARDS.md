@@ -133,7 +133,8 @@ public void pay(Player p, int amount) { // NÃO! Isso é do usuário
 ### Quando usar Caffeine
 
 - **Deve:** `ArgumentResolver` com lookup caro (Player por nome).
-- **Deve:** `SuggestionProvider` com listas grandes (players online).
+- **Deve:** `SuggestionProvider` com listas grandes (players online). Providers são síncronos por padrão; use
+  `@SuggestionProvider(async = true)` só quando o provider for thread-safe ou cacheado.
 - **Pode:** `PermissionHolder` cache se verificação for complexa.
 - **Não deve:** Resultado de execução de comando (side-effects).
 - **Não deve:** `CommandSource` ou objetos mutáveis.
@@ -164,27 +165,10 @@ Cache<String, Player> cache = Caffeine.newBuilder()
 ### Template de Adapter Async
 
 ```java
-// Gerado pelo processor
-return CompletableFuture.supplyAsync(() -> {
-    try {
-        if (!(source.getHandle() instanceof Player player)) {
-            return CommandResult.failure(
-                    FailureReason.INVALID_SENDER,
-                    "This command cannot be executed by this sender.");
-        }
-        int amount = ...;
-        instance.pay(player, amount);
-        return CommandResult.success();
-    } catch (Exception e) {
-        telemetry.recordException(e);
-        return CommandResult.failure(
-                FailureReason.EXCEPTION,
-                "An internal error occurred while executing this command.");
-    }
-}, executor).thenAccept(result -> {
-    // Volta para thread principal se necessário para enviar mensagens
-    platformScheduler.run(() -> result.sendFeedback(source));
-});
+// Gerado pelo processor quando o handler usa @Execute(async = true)
+executor.executeAsync(source, path, () -> instance.pay(player, amount))
+    .thenAccept(result -> handleResult(source, result, scheduler))
+    .exceptionally(throwable -> handleAsyncFailure(source, throwable, scheduler, messages));
 ```
 
 ---

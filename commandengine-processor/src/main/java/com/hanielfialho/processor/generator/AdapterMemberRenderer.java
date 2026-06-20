@@ -61,6 +61,7 @@ final class AdapterMemberRenderer {
         code.append("    private final CommandMessages messages;\n");
         code.append("    private final CommandTelemetry telemetry;\n");
         code.append("    private final CommandRateLimiter rateLimiter;\n");
+        code.append("    private final SuggestionExecutor suggestionExecutor;\n");
         code.append(
                 "    private final List<String> registeredNames = new java.util.concurrent.CopyOnWriteArrayList<>();\n\n");
     }
@@ -86,7 +87,7 @@ final class AdapterMemberRenderer {
                 .append(model.getSimpleClassName())
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers) {\n");
         code.append(
-                "        this(instance, executor, argumentResolvers, CommandScheduler.DIRECT, DEFAULT_MESSAGES, CommandTelemetry.NOOP, CommandRateLimiter.NONE);\n");
+                "        this(instance, executor, argumentResolvers, CommandScheduler.DIRECT, DEFAULT_MESSAGES, CommandTelemetry.NOOP, CommandRateLimiter.NONE, SuggestionExecutor.DIRECT);\n");
         code.append("    }\n\n");
         code.append("    public ")
                 .append(adapterName)
@@ -95,6 +96,17 @@ final class AdapterMemberRenderer {
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers, ")
                 .append(
                         "CommandScheduler scheduler, CommandMessages messages, CommandTelemetry telemetry, CommandRateLimiter rateLimiter) {\n");
+        code.append(
+                "        this(instance, executor, argumentResolvers, scheduler, messages, telemetry, rateLimiter, SuggestionExecutor.DIRECT);\n");
+        code.append("    }\n\n");
+
+        code.append("    public ")
+                .append(adapterName)
+                .append("(")
+                .append(model.getSimpleClassName())
+                .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers, ")
+                .append(
+                        "CommandScheduler scheduler, CommandMessages messages, CommandTelemetry telemetry, CommandRateLimiter rateLimiter, SuggestionExecutor suggestionExecutor) {\n");
         code.append("        this.instance = Objects.requireNonNull(instance, \"instance\");\n");
         code.append("        this.executor = Objects.requireNonNull(executor, \"executor\");\n");
         code.append("        this.argumentResolvers = argumentResolvers;\n");
@@ -102,6 +114,8 @@ final class AdapterMemberRenderer {
         code.append("        this.messages = Objects.requireNonNull(messages, \"messages\");\n");
         code.append("        this.telemetry = Objects.requireNonNull(telemetry, \"telemetry\");\n");
         code.append("        this.rateLimiter = Objects.requireNonNull(rateLimiter, \"rateLimiter\");\n");
+        code.append(
+                "        this.suggestionExecutor = Objects.requireNonNull(suggestionExecutor, \"suggestionExecutor\");\n");
         code.append("    }\n\n");
     }
 }

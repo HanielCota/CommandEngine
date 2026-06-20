@@ -23,6 +23,7 @@ final class AdapterFactoryRenderer {
         code.append("import com.hanielfialho.api.message.CommandMessages;\n");
         code.append("import com.hanielfialho.api.rate.CommandRateLimiter;\n");
         code.append("import com.hanielfialho.api.scheduler.CommandScheduler;\n");
+        code.append("import com.hanielfialho.api.suggestion.SuggestionExecutor;\n");
         code.append("import com.hanielfialho.api.telemetry.CommandTelemetry;\n");
         code.append("import java.util.Objects;\n\n");
 
@@ -72,6 +73,24 @@ final class AdapterFactoryRenderer {
                 .append("Objects.requireNonNull(messages, \"messages\"), ")
                 .append("Objects.requireNonNull(telemetry, \"telemetry\"), ")
                 .append("Objects.requireNonNull(rateLimiter, \"rateLimiter\"));\n");
+        code.append("    }\n");
+        code.append("\n");
+        code.append("    @Override\n");
+        code.append("    public CommandAdapter create(")
+                .append(model.getSimpleClassName())
+                .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers, ")
+                .append("CommandScheduler scheduler, CommandMessages messages, CommandTelemetry telemetry, ")
+                .append("CommandRateLimiter rateLimiter, SuggestionExecutor suggestionExecutor) {\n");
+        code.append("        return new ")
+                .append(adapterName)
+                .append(
+                        "(Objects.requireNonNull(instance, \"instance\"), Objects.requireNonNull(executor, \"executor\"), ")
+                .append("Objects.requireNonNull(argumentResolvers, \"argumentResolvers\"), ")
+                .append("Objects.requireNonNull(scheduler, \"scheduler\"), ")
+                .append("Objects.requireNonNull(messages, \"messages\"), ")
+                .append("Objects.requireNonNull(telemetry, \"telemetry\"), ")
+                .append("Objects.requireNonNull(rateLimiter, \"rateLimiter\"), ")
+                .append("Objects.requireNonNull(suggestionExecutor, \"suggestionExecutor\"));\n");
         code.append("    }\n");
         code.append("}\n");
         return code.toString();

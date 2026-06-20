@@ -9,6 +9,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import com.mojang.brigadier.suggestion.Suggestions;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
@@ -65,6 +66,20 @@ final class PaperBridgeCommandTest {
     }
 
     @Test
+    void treatsZeroBrigadierResultAsHandledCommand() {
+        var dispatcher = new CommandDispatcher<CommandSource>();
+        dispatcher.register(
+                LiteralArgumentBuilder.<CommandSource>literal("root").executes(context -> 0));
+        var sender = sender(true);
+        var command = bridge(dispatcher, "");
+
+        boolean result = command.execute(sender.sender(), "root", new String[0]);
+
+        assertThat(result).isTrue();
+        assertThat(sender.messages()).isEmpty();
+    }
+
+    @Test
     void returnsTabCompletionsFromDispatcher() {
         var dispatcher = new CommandDispatcher<CommandSource>();
         dispatcher.register(LiteralArgumentBuilder.<CommandSource>literal("root")
@@ -82,13 +97,15 @@ final class PaperBridgeCommandTest {
     @Test
     void returnsEmptyTabCompletionsWhenSuggestionFutureTimesOut() {
         var dispatcher = new CommandDispatcher<CommandSource>();
+        var suggestions = new CompletableFuture<Suggestions>();
         dispatcher.register(LiteralArgumentBuilder.<CommandSource>literal("root")
                 .then(RequiredArgumentBuilder.<CommandSource, String>argument("name", StringArgumentType.word())
-                        .suggests((context, builder) -> new CompletableFuture<>())));
+                        .suggests((context, builder) -> suggestions)));
         var command = bridge(dispatcher, "");
 
         assertThat(command.tabComplete(sender(true).sender(), "root", new String[] {"s"}))
                 .isEmpty();
+        suggestions.cancel(true);
     }
 
     private static PaperBridgeCommand bridge(CommandDispatcher<CommandSource> dispatcher, String permission) {

@@ -15,7 +15,8 @@ public record ParameterModel(
         int minLength,
         int maxLength,
         char shorthand,
-        @Nullable String suggestionMethodName) {
+        @Nullable String suggestionMethodName,
+        boolean asyncSuggestions) {
 
     public ParameterModel {
         Objects.requireNonNull(name, "name");
@@ -69,6 +70,10 @@ public record ParameterModel(
 
     public @Nullable String getSuggestionMethodName() {
         return suggestionMethodName;
+    }
+
+    public boolean isAsyncSuggestions() {
+        return asyncSuggestions;
     }
 
     public enum Kind {

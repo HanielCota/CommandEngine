@@ -11,6 +11,7 @@ import com.mojang.brigadier.suggestion.Suggestion;
 import com.mojang.brigadier.suggestion.Suggestions;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -51,7 +52,8 @@ public final class PaperBridgeCommand extends Command {
         }
         CommandSource source = new PaperCommandSource(sender);
         try {
-            return dispatcher.execute(commandLine(commandLabel, args), source) > 0;
+            dispatcher.execute(commandLine(commandLabel, args), source);
+            return true;
         } catch (CommandSyntaxException exception) {
             sender.sendMessage(messages.invalidSyntax());
             return false;
@@ -69,9 +71,9 @@ public final class PaperBridgeCommand extends Command {
         Objects.requireNonNull(args, "args");
         CommandSource source = new PaperCommandSource(sender);
         ParseResults<CommandSource> parse = dispatcher.parse(commandLine(alias, args), source);
+        CompletableFuture<Suggestions> suggestionsFuture = dispatcher.getCompletionSuggestions(parse);
         try {
-            Suggestions suggestions =
-                    dispatcher.getCompletionSuggestions(parse).get(TAB_COMPLETE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+            Suggestions suggestions = suggestionsFuture.get(TAB_COMPLETE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
             return suggestions.getList().stream().map(Suggestion::getText).toList();
         } catch (CompletionException exception) {
             logger.log(Level.FINE, exception, () -> "Command completion failed for /" + alias);
@@ -80,6 +82,7 @@ public final class PaperBridgeCommand extends Command {
             Thread.currentThread().interrupt();
             return List.of();
         } catch (TimeoutException exception) {
+            suggestionsFuture.cancel(true);
             logger.log(Level.FINE, exception, () -> "Command completion timed out for /" + alias);
             return List.of();
         } catch (Exception exception) {

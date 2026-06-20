@@ -161,6 +161,17 @@ public @interface Execute {
 }
 ```
 
+### @SuggestionProvider (METHOD)
+
+```java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.CLASS)
+public @interface SuggestionProvider {
+    String value();
+    boolean async() default false;    // Suggestions are synchronous unless explicitly opted in
+}
+```
+
 ### @Arg (PARAMETER)
 
 ```java
@@ -303,7 +314,9 @@ public class VirtualThreadExecutor {
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     public <T> CompletableFuture<T> submit(Supplier<T> task) {
-        return CompletableFuture.supplyAsync(task, executor);
+        var result = new CompletableFuture<T>();
+        executor.submit(() -> complete(result, task));
+        return result;
     }
 }
 ```
@@ -314,7 +327,8 @@ public class VirtualThreadExecutor {
 ### Cache (Caffeine)
 
 - **Localização:** `runtime` e plataformas que precisam de cache local.
-- **Uso:** `ArgumentResolver` e `SuggestionProvider` podem usar cache interno.
+- **Uso:** `ArgumentResolver` e `SuggestionProvider` podem usar cache interno. `@SuggestionProvider(async = true)` roda
+  no `SuggestionExecutor` configurado; o padrão sync preserva APIs de plataforma thread-confined.
 - **Config:** TTL e max-size via `commandengine.yml`.
 - **Implementação:** `CaffeineCacheBackend`, sempre com TTL e tamanho máximo definidos.
 

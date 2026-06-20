@@ -56,6 +56,25 @@ final class PaperBrigadierBindingTest {
         assertThat(commandMap.getKnownCommands()).doesNotContainValue(existing);
     }
 
+    @Test
+    void unregisterAllRemovesRegisteredAliasNodesFromDispatcher() {
+        var knownCommands = new LinkedHashMap<String, org.bukkit.command.Command>();
+        var commandMap = new SimpleCommandMap(server(), knownCommands);
+        var binding = new PaperBrigadierBinding(plugin(), commandMap);
+        var metadata = new CommandMetadata("root", List.of("r"), "", "", List.of());
+
+        binding.register(LiteralArgumentBuilder.<CommandSource>literal("root"), metadata);
+        binding.register(LiteralArgumentBuilder.<CommandSource>literal("r"), metadata);
+
+        assertThat(binding.getDispatcher().getRoot().getChild("root")).isNotNull();
+        assertThat(binding.getDispatcher().getRoot().getChild("r")).isNotNull();
+
+        binding.unregisterAll();
+
+        assertThat(binding.getDispatcher().getRoot().getChild("root")).isNull();
+        assertThat(binding.getDispatcher().getRoot().getChild("r")).isNull();
+    }
+
     private static Plugin plugin() {
         return (Plugin) Proxy.newProxyInstance(
                 Plugin.class.getClassLoader(),

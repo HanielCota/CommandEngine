@@ -5,6 +5,7 @@ import com.hanielfialho.api.executor.CommandExecutor;
 import com.hanielfialho.api.message.CommandMessages;
 import com.hanielfialho.api.rate.CommandRateLimiter;
 import com.hanielfialho.api.scheduler.CommandScheduler;
+import com.hanielfialho.api.suggestion.SuggestionExecutor;
 import com.hanielfialho.api.telemetry.CommandTelemetry;
 import java.util.Objects;
 import org.jetbrains.annotations.NotNull;
@@ -43,6 +44,19 @@ public interface CommandAdapterFactory<T> {
         return create(instance, executor, argumentResolvers);
     }
 
+    default @NotNull CommandAdapter create(
+            @NotNull T instance,
+            @NotNull CommandExecutor executor,
+            @NotNull ArgumentResolverRegistry argumentResolvers,
+            @NotNull CommandScheduler scheduler,
+            @NotNull CommandMessages messages,
+            @NotNull CommandTelemetry telemetry,
+            @NotNull CommandRateLimiter rateLimiter,
+            @NotNull SuggestionExecutor suggestionExecutor) {
+        Objects.requireNonNull(suggestionExecutor, "suggestionExecutor");
+        return create(instance, executor, argumentResolvers, scheduler, messages, telemetry, rateLimiter);
+    }
+
     default boolean supports(@NotNull Object instance) {
         return type().isInstance(Objects.requireNonNull(instance, "instance"));
     }
@@ -79,5 +93,25 @@ public interface CommandAdapterFactory<T> {
                 Objects.requireNonNull(messages, "messages"),
                 Objects.requireNonNull(telemetry, "telemetry"),
                 Objects.requireNonNull(rateLimiter, "rateLimiter"));
+    }
+
+    default @NotNull CommandAdapter createAdapter(
+            @NotNull Object instance,
+            @NotNull CommandExecutor executor,
+            @NotNull ArgumentResolverRegistry argumentResolvers,
+            @NotNull CommandScheduler scheduler,
+            @NotNull CommandMessages messages,
+            @NotNull CommandTelemetry telemetry,
+            @NotNull CommandRateLimiter rateLimiter,
+            @NotNull SuggestionExecutor suggestionExecutor) {
+        return create(
+                type().cast(Objects.requireNonNull(instance, "instance")),
+                Objects.requireNonNull(executor, "executor"),
+                Objects.requireNonNull(argumentResolvers, "argumentResolvers"),
+                Objects.requireNonNull(scheduler, "scheduler"),
+                Objects.requireNonNull(messages, "messages"),
+                Objects.requireNonNull(telemetry, "telemetry"),
+                Objects.requireNonNull(rateLimiter, "rateLimiter"),
+                Objects.requireNonNull(suggestionExecutor, "suggestionExecutor"));
     }
 }

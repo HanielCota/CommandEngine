@@ -137,13 +137,14 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
             return;
         }
 
-        removeRootNode(commandName);
         registeredCommands.remove(commandName);
         if (command == null) {
+            removeRootNode(commandName);
             return;
         }
+        removeRootNodes(commandName, command.getAliases());
         CommandMap currentCommandMap = commandMap;
-        if (command == null || currentCommandMap == null) {
+        if (currentCommandMap == null) {
             return;
         }
         command.unregister(currentCommandMap);
@@ -173,6 +174,16 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
                 dispatcher,
                 name,
                 (fieldName, exception) -> log(() -> "Unable to remove Brigadier node " + name, exception));
+    }
+
+    private void removeRootNodes(String commandName, @Nullable List<String> aliases) {
+        removeRootNode(commandName);
+        if (aliases == null) {
+            return;
+        }
+        for (String alias : aliases) {
+            removeRootNode(alias);
+        }
     }
 
     private void log(Supplier<String> message, Throwable throwable) {

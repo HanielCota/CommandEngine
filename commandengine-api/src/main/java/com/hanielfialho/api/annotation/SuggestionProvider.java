@@ -10,4 +10,10 @@ import java.lang.annotation.Target;
 public @interface SuggestionProvider {
 
     String value();
+
+    /**
+     * Runs this provider through the configured suggestion executor.
+     * Keep this disabled for providers that touch platform APIs which require the caller thread.
+     */
+    boolean async() default false;
 }

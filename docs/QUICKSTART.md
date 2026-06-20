@@ -227,13 +227,15 @@ Comandos do exemplo:
 - `@Flag` com forma longa e shorthand.
 - `@Greedy` para textos com espaços.
 - `@Range`, `@Min` e `@Max` para validação numérica nativa.
-- `@Optional` para argumentos com valor padrão. Tipos customizados precisam de um `ArgumentTypeResolver` que implemente
-  `resolveDefault` e declare `supportsDefault() = true`.
-- `@Suggestions` e `@SuggestionProvider` para tab-complete.
+- `@Optional` para argumentos com valor padrão. Tipos customizados precisam declarar `defaultValue` e usar um
+  `ArgumentTypeResolver` que implemente `resolveDefault` e declare `supportsDefault() = true`.
+- `@Suggestions` e `@SuggestionProvider` para tab-complete. Providers são síncronos por padrão; use
+  `@SuggestionProvider(async = true)` apenas para providers thread-safe ou cacheados.
 - Handlers `void` executam de forma síncrona por padrão.
 - Use `@Execute(async = true)` quando um handler `void` precisar rodar no executor baseado em virtual threads.
 - Configure `CommandEngine.builder().messages(...)`, `.telemetry(...)`, `.scheduler(...)`, `.rateLimiter(...)`,
-  `.config(...)` e `.asyncTimeout(...)` quando a plataforma precisar de comportamento customizado.
+  `.suggestionExecutor(...)`, `.config(...)` e `.asyncTimeout(...)` quando a plataforma precisar de comportamento
+  customizado.
 - `CommandEngineConfig.defaults()` habilita a configuração centralizada de mensagens, timeout async e rate limit com
   Caffeine.
 

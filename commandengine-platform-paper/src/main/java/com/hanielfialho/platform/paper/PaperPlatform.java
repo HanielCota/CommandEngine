@@ -8,6 +8,7 @@ import com.hanielfialho.api.rate.CommandRateLimiter;
 import com.hanielfialho.api.registry.BrigadierAdapter;
 import com.hanielfialho.api.registry.CommandRegistry;
 import com.hanielfialho.api.scheduler.CommandScheduler;
+import com.hanielfialho.api.suggestion.SuggestionExecutor;
 import com.hanielfialho.platform.paper.argument.LocationArgumentResolver;
 import com.hanielfialho.platform.paper.argument.MaterialArgumentResolver;
 import com.hanielfialho.platform.paper.argument.PlayerArgumentResolver;
@@ -36,6 +37,7 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
     private final CommandScheduler scheduler;
     private final CommandMessages messages;
     private final CommandRateLimiter rateLimiter;
+    private final SuggestionExecutor suggestionExecutor;
 
     private PaperPlatform(@NotNull Plugin plugin, @NotNull CommandEngineConfig config) {
         this.plugin = Preconditions.checkNotNull(plugin, "plugin");
@@ -47,6 +49,7 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
         var server = plugin.getServer();
         this.brigadier = new PaperBrigadierBinding(plugin, server.getCommandMap(), messages);
         this.executor = CommandEngine.virtualThreadExecutor(messages, config.asyncTimeout());
+        this.suggestionExecutor = CommandEngine.virtualThreadSuggestionExecutor(config.asyncTimeout());
         this.argumentResolvers = CommandEngine.defaultArgumentResolverRegistry()
                 .register(new PlayerArgumentResolver())
                 .register(new WorldArgumentResolver())
@@ -104,6 +107,11 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
     }
 
     @Override
+    public @NotNull SuggestionExecutor suggestionExecutor() {
+        return suggestionExecutor;
+    }
+
+    @Override
     public @NotNull Object owner() {
         return plugin;
     }
@@ -154,6 +162,14 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
             } catch (Exception exception) {
                 failure = addSuppressed(
                         failure, new IllegalStateException("Failed to close command executor", exception));
+            }
+        }
+        if (suggestionExecutor instanceof AutoCloseable closeable) {
+            try {
+                closeable.close();
+            } catch (Exception exception) {
+                failure = addSuppressed(
+                        failure, new IllegalStateException("Failed to close suggestion executor", exception));
             }
         }
         if (failure != null) {

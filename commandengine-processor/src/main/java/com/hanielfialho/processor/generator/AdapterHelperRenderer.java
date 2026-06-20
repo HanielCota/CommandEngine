@@ -88,28 +88,40 @@ final class AdapterHelperRenderer {
         code.append(
                 "    private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggestFrom(\n");
         code.append(
-                "            SuggestionsBuilder builder, CommandTelemetry telemetry, CommandPath path, Supplier<List<String>> supplier) {\n");
-        code.append("        long started = telemetry == CommandTelemetry.NOOP ? 0L : System.nanoTime();\n");
-        code.append("        int suggestionCount = 0;\n");
-        code.append("        try {\n");
-        code.append("            List<String> suggestions = supplier.get();\n");
-        code.append("            if (suggestions == null || suggestions.isEmpty()) {\n");
-        code.append("                recordSuggestion(telemetry, path, started, suggestionCount);\n");
-        code.append("                return builder.buildFuture();\n");
-        code.append("            }\n");
-        code.append("            String remaining = builder.getRemainingLowerCase();\n");
-        code.append("            for (String suggestion : suggestions) {\n");
+                "            SuggestionsBuilder builder, CommandTelemetry telemetry, CommandPath path, SuggestionExecutor suggestionExecutor,\n");
+        code.append("            boolean async, Supplier<List<String>> supplier) {\n");
+        code.append("        Objects.requireNonNull(suggestionExecutor, \"suggestionExecutor\");\n");
+        code.append("        if (!async) {\n");
         code.append(
-                "                if (suggestion != null && suggestion.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {\n");
-        code.append("                    builder.suggest(suggestion);\n");
-        code.append("                    suggestionCount++;\n");
-        code.append("                }\n");
-        code.append("            }\n");
-        code.append("            recordSuggestion(telemetry, path, started, suggestionCount);\n");
-        code.append("        } catch (RuntimeException exception) {\n");
-        code.append("            recordSuggestionFailure(telemetry, path, exception);\n");
+                "            return CompletableFuture.completedFuture(buildSuggestions(builder, telemetry, path, supplier));\n");
         code.append("        }\n");
-        code.append("        return builder.buildFuture();\n");
+        code.append(
+                "        return suggestionExecutor.submit(() -> buildSuggestions(builder, telemetry, path, supplier));\n");
+        code.append("    }\n\n");
+        code.append("    private static com.mojang.brigadier.suggestion.Suggestions buildSuggestions(\n");
+        code.append(
+                "            SuggestionsBuilder builder, CommandTelemetry telemetry, CommandPath path, Supplier<List<String>> supplier) {\n");
+        code.append("            long started = telemetry == CommandTelemetry.NOOP ? 0L : System.nanoTime();\n");
+        code.append("            int suggestionCount = 0;\n");
+        code.append("            try {\n");
+        code.append("                List<String> suggestions = supplier.get();\n");
+        code.append("                if (suggestions == null || suggestions.isEmpty()) {\n");
+        code.append("                    recordSuggestion(telemetry, path, started, suggestionCount);\n");
+        code.append("                    return builder.build();\n");
+        code.append("                }\n");
+        code.append("                String remaining = builder.getRemainingLowerCase();\n");
+        code.append("                for (String suggestion : suggestions) {\n");
+        code.append(
+                "                    if (suggestion != null && suggestion.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {\n");
+        code.append("                        builder.suggest(suggestion);\n");
+        code.append("                        suggestionCount++;\n");
+        code.append("                    }\n");
+        code.append("                }\n");
+        code.append("                recordSuggestion(telemetry, path, started, suggestionCount);\n");
+        code.append("            } catch (RuntimeException exception) {\n");
+        code.append("                recordSuggestionFailure(telemetry, path, exception);\n");
+        code.append("            }\n");
+        code.append("            return builder.build();\n");
         code.append("    }\n\n");
         code.append(
                 "    private static void recordSuggestion(CommandTelemetry telemetry, CommandPath path, long started, int count) {\n");
@@ -148,7 +160,12 @@ final class AdapterHelperRenderer {
 
         code.append(
                 "    private <T> T resolveDefaultArgument(CommandContext<CommandSource> context, Class<T> type, String input) {\n");
-        code.append("        return resolverFor(type).resolveDefault(context, input);\n");
+        code.append("        ArgumentTypeResolver<T> resolver = resolverFor(type);\n");
+        code.append("        if (!resolver.supportsDefault()) {\n");
+        code.append(
+                "            throw new IllegalArgumentException(\"ArgumentTypeResolver for \" + type.getName() + \" does not support default values\");\n");
+        code.append("        }\n");
+        code.append("        return resolver.resolveDefault(context, input);\n");
         code.append("    }\n\n");
 
         code.append("    private <T> ArgumentTypeResolver<T> resolverFor(Class<T> type) {\n");

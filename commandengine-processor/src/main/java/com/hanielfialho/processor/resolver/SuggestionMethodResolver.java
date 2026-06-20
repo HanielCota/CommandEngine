@@ -1,6 +1,7 @@
 package com.hanielfialho.processor.resolver;
 
 import com.hanielfialho.api.annotation.SuggestionProvider;
+import com.hanielfialho.processor.model.SuggestionMethodModel;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -19,15 +20,15 @@ public final class SuggestionMethodResolver {
         this.processingEnv = processingEnv;
     }
 
-    public Map<String, String> resolve(TypeElement typeElement) {
-        var methods = new HashMap<String, String>();
+    public Map<String, SuggestionMethodModel> resolve(TypeElement typeElement) {
+        var methods = new HashMap<String, SuggestionMethodModel>();
         for (var enclosed : typeElement.getEnclosedElements()) {
             resolveMethod(enclosed, methods);
         }
         return Map.copyOf(methods);
     }
 
-    private void resolveMethod(Element enclosed, Map<String, String> methods) {
+    private void resolveMethod(Element enclosed, Map<String, SuggestionMethodModel> methods) {
         if (enclosed.getKind() != ElementKind.METHOD) {
             return;
         }
@@ -93,7 +94,9 @@ public final class SuggestionMethodResolver {
             return;
         }
 
-        methods.put(annotation.value(), method.getSimpleName().toString());
+        methods.put(
+                annotation.value(),
+                new SuggestionMethodModel(method.getSimpleName().toString(), annotation.async()));
     }
 
     private boolean hasCheckedExceptions(ExecutableElement method) {

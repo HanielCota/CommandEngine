@@ -520,6 +520,8 @@ Antes de usar em producao aberta:
 - rode o plugin de exemplo em servidor Paper real;
 - valide reload/disable e limpeza de comandos;
 - valide aliases e tab-complete in-game;
+- mantenha `@SuggestionProvider` rápido/cacheado; use `@SuggestionProvider(async = true)` apenas quando o provider for
+  thread-safe ou cacheado e não tocar APIs Paper thread-confined;
 - confirme que handlers async nao chamam APIs Paper thread-confined diretamente;
 - rode [Production Checklist](docs/PRODUCTION_CHECKLIST.md);
 - fixe uma versao/tag em vez de usar `main-SNAPSHOT`.

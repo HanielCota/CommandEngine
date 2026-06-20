@@ -240,6 +240,41 @@ final class CommandEngineProcessorTest {
     }
 
     @Test
+    void generatesOptionalDefaultLookupForExternalArgumentType() {
+        JavaFileObject player = JavaFileObjects.forSourceString("example.Player", """
+                package example;
+
+                public interface Player {
+                }
+                """);
+        JavaFileObject command = JavaFileObjects.forSourceString("example.TargetCommand", """
+                package example;
+
+                import com.hanielfialho.api.annotation.Arg;
+                import com.hanielfialho.api.annotation.Command;
+                import com.hanielfialho.api.annotation.Optional;
+                import com.hanielfialho.api.annotation.Subcommand;
+
+                @Command(name = "target")
+                public final class TargetCommand {
+
+                    @Subcommand("run")
+                    public void run(@Arg("player") @Optional(defaultValue = "spawn") Player player) {
+                    }
+                }
+                """);
+
+        Compilation compilation =
+                Compiler.javac().withProcessors(new CommandEngineProcessor()).compile(player, command);
+
+        assertThat(compilation).succeeded();
+        assertThat(compilation)
+                .generatedSourceFile("example.TargetCommandCommandAdapter")
+                .contentsAsUtf8String()
+                .contains("resolveDefaultArgument(context, example.Player.class, \"spawn\")");
+    }
+
+    @Test
     void generatesLazySuggestionsFromProviderMethod() {
         JavaFileObject command = JavaFileObjects.forSourceString("example.WarpCommand", """
                 package example;
@@ -273,9 +308,48 @@ final class CommandEngineProcessorTest {
                 .generatedSourceFile("example.WarpCommandCommandAdapter")
                 .contentsAsUtf8String();
         generatedAdapter.contains(
-                ".suggests((context, builder) -> suggestFrom(builder, telemetry, COMMAND_PATH_0, () -> instance.warpNames()))");
+                ".suggests((context, builder) -> suggestFrom(builder, telemetry, COMMAND_PATH_0, suggestionExecutor, false, () -> instance.warpNames()))");
+        generatedAdapter.contains("return CompletableFuture.completedFuture(buildSuggestions");
+        generatedAdapter.contains("return suggestionExecutor.submit(() -> buildSuggestions");
         generatedAdapter.contains("long started = telemetry == CommandTelemetry.NOOP ? 0L : System.nanoTime()");
         generatedAdapter.contains("if (telemetry == CommandTelemetry.NOOP)");
+    }
+
+    @Test
+    void marksAsyncSuggestionProvidersAsExecutorBacked() {
+        JavaFileObject command = JavaFileObjects.forSourceString("example.WarpCommand", """
+                package example;
+
+                import com.hanielfialho.api.annotation.Arg;
+                import com.hanielfialho.api.annotation.Command;
+                import com.hanielfialho.api.annotation.SuggestionProvider;
+                import com.hanielfialho.api.annotation.Suggestions;
+                import com.hanielfialho.api.annotation.Subcommand;
+                import java.util.List;
+
+                @Command(name = "warp")
+                public final class WarpCommand {
+
+                    @Subcommand("teleport")
+                    public void teleport(@Arg("name") @Suggestions("warpNames") String warpName) {
+                    }
+
+                    @SuggestionProvider(value = "warpNames", async = true)
+                    public List<String> warpNames() {
+                        return List.of("spawn", "shop");
+                    }
+                }
+                """);
+
+        Compilation compilation =
+                Compiler.javac().withProcessors(new CommandEngineProcessor()).compile(command);
+
+        assertThat(compilation).succeeded();
+        assertThat(compilation)
+                .generatedSourceFile("example.WarpCommandCommandAdapter")
+                .contentsAsUtf8String()
+                .contains(
+                        ".suggests((context, builder) -> suggestFrom(builder, telemetry, COMMAND_PATH_0, suggestionExecutor, true, () -> instance.warpNames()))");
     }
 
     @Test
@@ -1000,11 +1074,11 @@ final class CommandEngineProcessorTest {
                 .generatedSourceFile("example.SuggestCommandCommandAdapter")
                 .contentsAsUtf8String();
         generatedAdapter.contains(
-                ".suggests((context, builder) -> suggestFrom(builder, telemetry, COMMAND_PATH_0, () -> instance.names()))");
+                ".suggests((context, builder) -> suggestFrom(builder, telemetry, COMMAND_PATH_0, suggestionExecutor, false, () -> instance.names()))");
     }
 
     @Test
-    void rejectsOptionalOnCustomType() {
+    void rejectsOptionalOnCustomTypeWithoutDefaultValue() {
         JavaFileObject player = JavaFileObjects.forSourceString("example.Player", """
                 package example;
 
@@ -1032,8 +1106,7 @@ final class CommandEngineProcessorTest {
                 Compiler.javac().withProcessors(new CommandEngineProcessor()).compile(player, command);
 
         assertThat(compilation).failed();
-        assertThat(compilation)
-                .hadErrorContaining("@Optional is only supported for built-in argument types and string sequences");
+        assertThat(compilation).hadErrorContaining("@Optional defaultValue is required for custom argument types");
     }
 
     @Test

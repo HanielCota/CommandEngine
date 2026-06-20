@@ -12,7 +12,10 @@ import com.hanielfialho.runtime.CommandEngine;
 import com.hanielfialho.test.brigadier.LocalBrigadierAdapter;
 import com.hanielfialho.test.command.IntegrationDebugCommand;
 import com.hanielfialho.test.command.IntegrationEconomyCommand;
+import com.hanielfialho.test.command.IntegrationOptionalCustomCommand;
 import com.hanielfialho.test.command.IntegrationPlayerOnlyCommand;
+import com.hanielfialho.test.command.IntegrationSharedPrefixCommand;
+import com.hanielfialho.test.command.IntegrationSlowSuggestionCommand;
 import com.hanielfialho.test.command.IntegrationStressCommand;
 import com.hanielfialho.test.command.IntegrationTimeCommand;
 import com.hanielfialho.test.command.IntegrationWarpCommand;
@@ -119,6 +122,44 @@ final class CommandExecutionIntegrationTest {
     }
 
     @Test
+    void resolvesOptionalCustomArgumentDefaultsThroughRegisteredResolvers() throws Exception {
+        var adapter = new LocalBrigadierAdapter();
+        try (var engine = CommandEngine.builder()
+                .brigadier(adapter)
+                .argumentResolver(new CustomTargetResolver(true))
+                .build()) {
+            var source = source("tester");
+            var command = new IntegrationOptionalCustomCommand();
+
+            engine.register(command);
+            int result = adapter.dispatcher().execute("custom default", source);
+
+            assertThat(result).isEqualTo(1);
+            assertThat(command.events()).containsExactly("target:spawn");
+            assertThat(source.messages()).isEmpty();
+        }
+    }
+
+    @Test
+    void handlesOptionalCustomDefaultsWithoutResolverSupportAsInternalError() throws Exception {
+        var adapter = new LocalBrigadierAdapter();
+        try (var engine = CommandEngine.builder()
+                .brigadier(adapter)
+                .argumentResolver(new CustomTargetResolver(false))
+                .build()) {
+            var source = source("tester");
+            var command = new IntegrationOptionalCustomCommand();
+
+            engine.register(command);
+            int result = adapter.dispatcher().execute("custom default", source);
+
+            assertThat(result).isZero();
+            assertThat(command.events()).isEmpty();
+            assertThat(source.messages()).containsExactly("An internal error occurred while executing this command.");
+        }
+    }
+
+    @Test
     void unregistersPreviouslyRegisteredCommandInstance() {
         try (var harness = com.hanielfialho.test.engine.TestEngine.harness()) {
             var source = source("tester");
@@ -130,6 +171,20 @@ final class CommandExecutionIntegrationTest {
 
             assertThatThrownBy(() -> harness.dispatcher().execute("warp teleport spawn", source))
                     .isInstanceOf(CommandSyntaxException.class);
+        }
+    }
+
+    @Test
+    void dispatchesSubcommandsWithSharedLiteralPrefixes() throws Exception {
+        try (var harness = com.hanielfialho.test.engine.TestEngine.harness()) {
+            var source = source("tester");
+            var command = new IntegrationSharedPrefixCommand();
+
+            harness.engine().register(command);
+            harness.dispatcher().execute("admin player ban alice", source);
+            harness.dispatcher().execute("admin player kick bob", source);
+
+            assertThat(command.events()).containsExactly("ban:alice", "kick:bob");
         }
     }
 
@@ -171,6 +226,31 @@ final class CommandExecutionIntegrationTest {
             waitUntil(() -> telemetry.executions().contains("warp teleport:true"));
 
             assertThat(telemetry.executions()).contains("warp teleport:true");
+        }
+    }
+
+    @Test
+    void generatedSuggestionProvidersDoNotBlockCompletionRequest() throws Exception {
+        try (var harness = com.hanielfialho.test.engine.TestEngine.harness()) {
+            var source = source("tester");
+            var command = new IntegrationSlowSuggestionCommand();
+
+            harness.engine().register(command);
+            var parse = harness.dispatcher().parse("slow run s", source);
+            var suggestions = harness.dispatcher().getCompletionSuggestions(parse);
+
+            try {
+                assertThat(command.awaitStarted()).isTrue();
+                assertThat(suggestions.isDone()).isFalse();
+
+                command.release();
+
+                assertThat(suggestions.get(1, TimeUnit.SECONDS).getList())
+                        .extracting(Suggestion::getText)
+                        .containsExactly("spawn");
+            } finally {
+                command.release();
+            }
         }
     }
 
@@ -298,6 +378,41 @@ final class CommandExecutionIntegrationTest {
         @Override
         public Instant resolve(CommandContext<?> context, String name) {
             throw new IllegalArgumentException("resolver failure");
+        }
+    }
+
+    private static final class CustomTargetResolver
+            implements ArgumentTypeResolver<IntegrationOptionalCustomCommand.CustomTarget> {
+
+        private final boolean supportsDefault;
+
+        private CustomTargetResolver(boolean supportsDefault) {
+            this.supportsDefault = supportsDefault;
+        }
+
+        @Override
+        public Class<IntegrationOptionalCustomCommand.CustomTarget> type() {
+            return IntegrationOptionalCustomCommand.CustomTarget.class;
+        }
+
+        @Override
+        public ArgumentType<?> argumentType() {
+            return StringArgumentType.word();
+        }
+
+        @Override
+        public IntegrationOptionalCustomCommand.CustomTarget resolve(CommandContext<?> context, String name) {
+            return new IntegrationOptionalCustomCommand.CustomTarget(StringArgumentType.getString(context, name));
+        }
+
+        @Override
+        public IntegrationOptionalCustomCommand.CustomTarget resolveDefault(CommandContext<?> context, String input) {
+            return new IntegrationOptionalCustomCommand.CustomTarget(input);
+        }
+
+        @Override
+        public boolean supportsDefault() {
+            return supportsDefault;
         }
     }
 
