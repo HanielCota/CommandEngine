@@ -40,7 +40,7 @@ final class AdapterMemberRenderer {
         code.append("            try {\n");
         code.append("                command.run();\n");
         code.append("                return CommandResult.success();\n");
-        code.append("            } catch (Throwable exception) {\n");
+        code.append("            } catch (RuntimeException exception) {\n");
         code.append(
                 "                return CommandResult.failure(FailureReason.EXCEPTION, DEFAULT_MESSAGES.internalError());\n");
         code.append("            }\n");

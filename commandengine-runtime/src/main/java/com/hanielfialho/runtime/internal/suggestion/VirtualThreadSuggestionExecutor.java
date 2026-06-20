@@ -3,13 +3,15 @@ package com.hanielfialho.runtime.internal.suggestion;
 import com.hanielfialho.api.suggestion.SuggestionExecutor;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.jetbrains.annotations.NotNull;
 
@@ -34,30 +36,37 @@ public final class VirtualThreadSuggestionExecutor implements SuggestionExecutor
     public <T> @NotNull CompletableFuture<T> submit(@NotNull Supplier<T> task) {
         Objects.requireNonNull(task, "task");
         var result = new CompletableFuture<T>();
-        var runningTask = new AtomicReference<Future<?>>();
+        var futureTask = new FutureTask<T>(task::get) {
+            @Override
+            protected void done() {
+                completeFromTask(this, result);
+            }
+        };
         result.whenComplete((value, failure) -> {
             if (result.isCancelled() || failure instanceof TimeoutException) {
-                Future<?> future = runningTask.get();
-                if (future != null) {
-                    future.cancel(true);
-                }
+                futureTask.cancel(true);
             }
         });
-        Future<?> future = executor.submit(() -> {
-            if (result.isCancelled()) {
-                return;
-            }
-            try {
-                result.complete(task.get());
-            } catch (Throwable throwable) {
-                result.completeExceptionally(throwable);
-            }
-        });
-        runningTask.set(future);
-        if (result.isCancelled()) {
-            future.cancel(true);
+        try {
+            executor.execute(futureTask);
+        } catch (RejectedExecutionException exception) {
+            result.completeExceptionally(exception);
         }
         return result.orTimeout(timeout.toNanos(), TimeUnit.NANOSECONDS);
+    }
+
+    private static <T> void completeFromTask(FutureTask<T> task, CompletableFuture<T> result) {
+        try {
+            result.complete(task.get());
+        } catch (CancellationException exception) {
+            result.cancel(false);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            result.completeExceptionally(exception);
+        } catch (ExecutionException exception) {
+            Throwable cause = exception.getCause();
+            result.completeExceptionally(cause == null ? exception : cause);
+        }
     }
 
     @Override
