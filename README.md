@@ -12,7 +12,7 @@ usuario, sem reflection no hot path.
 O primeiro adapter oficial e para Paper/Purpur, mas o core foi desenhado para ser agnostico de plataforma. Novos
 adapters podem reutilizar as mesmas anotacoes, o mesmo runtime e os mesmos contratos publicos.
 
-> Release atual: `v0.1.0-alpha.5`. O projeto ainda esta em alpha: ja serve para experimentos e plugins controlados,
+> Release atual: `v0.1.0-alpha.6`. O projeto ainda esta em alpha: ja serve para experimentos e plugins controlados,
 > mas a API publica ainda pode mudar antes da versao estavel.
 
 ## Destaques
@@ -143,7 +143,7 @@ dependencyResolutionManagement {
 Use um tag, commit hash ou `main-SNAPSHOT`. Tags sao recomendadas para builds reproduziveis:
 
 ```kotlin
-val commandEngineVersion = "v0.1.0-alpha.5"
+val commandEngineVersion = "v0.1.0-alpha.6"
 
 dependencies {
     implementation("com.github.HanielCota.CommandEngine:commandengine-api:$commandEngineVersion")
