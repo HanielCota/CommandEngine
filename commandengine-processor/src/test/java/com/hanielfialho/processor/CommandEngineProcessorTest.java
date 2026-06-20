@@ -144,7 +144,7 @@ final class CommandEngineProcessorTest {
     }
 
     @Test
-    void generatesVoidHandlersAsAsyncByDefaultAndAllowsSyncOptOut() {
+    void generatesVoidHandlersAsSyncByDefaultAndAllowsAsyncOptIn() {
         JavaFileObject command = JavaFileObjects.forSourceString("example.TaskCommand", """
                 package example;
 
@@ -159,9 +159,14 @@ final class CommandEngineProcessorTest {
                     public void run() {
                     }
 
-                    @Subcommand("sync")
-                    @Execute(async = false)
-                    public void sync() {
+                    @Subcommand("default")
+                    @Execute
+                    public void defaultExecute() {
+                    }
+
+                    @Subcommand("async")
+                    @Execute(async = true)
+                    public void async() {
                     }
                 }
                 """);
@@ -173,8 +178,9 @@ final class CommandEngineProcessorTest {
         var generatedAdapter = assertThat(compilation)
                 .generatedSourceFile("example.TaskCommandCommandAdapter")
                 .contentsAsUtf8String();
-        generatedAdapter.contains("executor.executeAsync(source, COMMAND_PATH_0, () -> instance.run())");
-        generatedAdapter.contains("executor.executeSync(source, COMMAND_PATH_1, () -> instance.sync())");
+        generatedAdapter.contains("executor.executeSync(source, COMMAND_PATH_0, () -> instance.run())");
+        generatedAdapter.contains("executor.executeSync(source, COMMAND_PATH_1, () -> instance.defaultExecute())");
+        generatedAdapter.contains("executor.executeAsync(source, COMMAND_PATH_2, () -> instance.async())");
     }
 
     @Test

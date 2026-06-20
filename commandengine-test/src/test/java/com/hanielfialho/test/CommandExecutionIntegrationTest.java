@@ -234,7 +234,7 @@ final class CommandExecutionIntegrationTest {
 
             waitUntil(() -> source.messages().size() == 1);
 
-            assertThat(result).isEqualTo(1);
+            assertThat(result).isZero();
             assertThat(command.events()).isEmpty();
             assertThat(source.messages()).containsExactly("An internal error occurred while executing this command.");
         }

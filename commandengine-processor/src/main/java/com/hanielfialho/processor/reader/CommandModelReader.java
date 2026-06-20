@@ -143,7 +143,7 @@ public final class CommandModelReader {
                 subcommandPath,
                 subcommandPermission,
                 conventionRootHandler ? "" : sub.description(),
-                returnsVoid && (exec == null || exec.async()),
+                returnsVoid && exec != null && exec.async(),
                 returnsVoid);
 
         var parameterNames = new HashSet<String>();

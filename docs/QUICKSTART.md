@@ -230,8 +230,8 @@ Comandos do exemplo:
 - `@Optional` para argumentos com valor padrão. Tipos customizados precisam de um `ArgumentTypeResolver` que implemente
   `resolveDefault` e declare `supportsDefault() = true`.
 - `@Suggestions` e `@SuggestionProvider` para tab-complete.
-- Handlers `void` executam de forma assíncrona com executor baseado em virtual threads por padrão.
-- Use `@Execute(async = false)` quando um handler `void` precisar ficar síncrono.
+- Handlers `void` executam de forma síncrona por padrão.
+- Use `@Execute(async = true)` quando um handler `void` precisar rodar no executor baseado em virtual threads.
 - Configure `CommandEngine.builder().messages(...)`, `.telemetry(...)`, `.scheduler(...)`, `.rateLimiter(...)`,
   `.config(...)` e `.asyncTimeout(...)` quando a plataforma precisar de comportamento customizado.
 - `CommandEngineConfig.defaults()` habilita a configuração centralizada de mensagens, timeout async e rate limit com

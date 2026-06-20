@@ -157,7 +157,7 @@ public @interface Subcommand {
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.CLASS)
 public @interface Execute {
-    boolean async() default true;     // Void handlers use virtual threads by default
+    boolean async() default false;    // Void handlers are synchronous by default
 }
 ```
 
@@ -233,8 +233,8 @@ Para cada classe `@Command`, o processor gera:
 
 - **Chamadas diretas:** `instance.metodo(arg1, arg2)` — zero `Method#invoke`.
 - **Injeção gerada:** Cada parâmetro (`@Sender`, `@Arg`, `@Flag`) vira uma linha de extração do `CommandContext`.
-- **Async wrapper:** Handlers `void` usam `CompletableFuture` com `VirtualThreadExecutor` por padrão.
-- **Sync opt-out:** `@Execute(async = false)` mantém um handler `void` síncrono.
+- **Sync default:** Handlers `void` executam de forma síncrona por padrão.
+- **Async opt-in:** `@Execute(async = true)` usa `CompletableFuture` com `VirtualThreadExecutor`.
 - **Retorno `int`:** Handlers que retornam resultado Brigadier continuam síncronos.
 - **Validação inline:** `@Arg(min = 1)` vira `if (value < 1) throw ...` no adapter.
 - **Early return:** Adapters gerados evitam `else`, validando permissionamento, rate limit, sender e argumentos antes da
@@ -468,7 +468,7 @@ public class TestEngine {
 
 ### Fase 3 — Async & Performance (Semana 7)
 
-- [x] Handlers `void` async por padrão com Virtual Threads
+- [x] Handlers `void` sync por padrão com opt-in async em Virtual Threads
 - [ ] Benchmark JMH: reflection vs generated adapter
 - [ ] Otimização: evitar boxing desnecessário
 

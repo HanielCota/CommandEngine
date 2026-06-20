@@ -14,5 +14,5 @@ public @interface Execute {
      * Async handlers are executed through the configured command executor,
      * which uses virtual threads by default.
      */
-    boolean async() default true;
+    boolean async() default false;
 }

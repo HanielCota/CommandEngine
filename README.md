@@ -24,8 +24,8 @@ adapters podem reutilizar as mesmas anotacoes, o mesmo runtime e os mesmos contr
 - Suporte a `@Sender`, `@Arg`, `@Flag`, `@Optional`, `@Greedy`, `@Range`, `@Min`, `@Max`, `@Suggestions` e
   `@SuggestionProvider`.
 - Suporte a argumentos `String[]` e `List<String>` para comandos estilo CLI.
-- Handlers `void` executam em virtual threads por padrao.
-- `@Execute(async = false)` para handlers sincronizados.
+- Handlers `void` executam de forma sincronizada por padrao.
+- `@Execute(async = true)` para handlers assíncronos em virtual threads.
 - Mensagens configuraveis para erros de framework.
 - Rate limit com Caffeine.
 - Telemetry SPI com implementacao de logging.
@@ -363,14 +363,14 @@ Fluxo de execucao:
 2. O adapter gerado valida permissao e rate limit.
 3. O adapter extrai `@Sender`, `@Arg` e `@Flag`.
 4. O adapter chama o metodo do usuario diretamente.
-5. Handlers `void` usam virtual threads por padrao.
+5. Handlers `void` executam de forma sincronizada por padrao.
 6. Handlers que retornam `int` permanecem sincronizados, porque Brigadier precisa do resultado imediatamente.
 7. Mensagens de erro sao enviadas via `CommandMessages` e `CommandScheduler`.
 
-Exemplo de opt-out async:
+Exemplo de opt-in async:
 
 ```java
-@Execute(async = false)
+@Execute(async = true)
 @Subcommand("reload")
 public void reload(@Sender CommandSource source) {
     source.sendMessage("Reloaded.");

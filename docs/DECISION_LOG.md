@@ -68,9 +68,9 @@ crescer sem limite quando usado com chaves controladas por entrada externa.
 **Data:** 2026-06-18
 **Contexto:** Java 25 tem Virtual Threads (JEP 444). Servidores Minecraft ainda usam thread pools fixos para async.
 
-**Decisão:** Handlers `void` executam em virtual threads por padrão pelo `CommandExecutor`. `@Execute(async = false)`
-mantem um handler `void` sincrono quando a plataforma exigir isso. Handlers que retornam `int` continuam sincronos
-porque o Brigadier precisa do resultado imediatamente.
+**Decisão:** Handlers `void` executam de forma sincrona por padrão pelo `CommandExecutor`. `@Execute(async = true)`
+envia um handler `void` para virtual threads quando o comando fizer trabalho bloqueante ou explicitamente async.
+Handlers que retornam `int` continuam sincronos porque o Brigadier precisa do resultado imediatamente.
 
 **Consequências:**
 

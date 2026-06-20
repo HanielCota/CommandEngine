@@ -2,6 +2,7 @@ package com.hanielfialho.test.command;
 
 import com.hanielfialho.api.annotation.Arg;
 import com.hanielfialho.api.annotation.Command;
+import com.hanielfialho.api.annotation.Execute;
 import com.hanielfialho.api.annotation.Greedy;
 import com.hanielfialho.api.annotation.Sender;
 import com.hanielfialho.api.annotation.Subcommand;
@@ -24,6 +25,7 @@ public final class IntegrationWarpCommand {
     }
 
     @Subcommand("teleport")
+    @Execute(async = true)
     public void teleport(@Sender CommandSource source, @Arg("name") @Suggestions("warpNames") String warpName) {
         events.add("teleport:" + warpName + ":" + source.getName());
     }

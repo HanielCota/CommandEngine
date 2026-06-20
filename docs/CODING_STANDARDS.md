@@ -154,7 +154,7 @@ Cache<String, Player> cache = Caffeine.newBuilder()
 
 ### Regras
 
-1. Handlers `void` executam em Virtual Thread por padrão; use `@Execute(async = false)` apenas para opt-out.
+1. Handlers `void` executam de forma síncrona por padrão; use `@Execute(async = true)` apenas para opt-in async.
 2. **Nunca** faça I/O bloqueante (SQL, HTTP, sleep) na thread principal.
 3. **Sempre** capture `CommandSource` e contexto **antes** de enviar para async.
 4. **Sempre** propague exceções de volta ao dispatcher para tratamento.
