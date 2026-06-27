@@ -265,7 +265,9 @@ public final class CommandEngine implements AutoCloseable {
 
         throw new IllegalArgumentException("No generated adapter factory found for "
                 + commandInstance.getClass().getName()
-                + ". Ensure the class is annotated with @Command and compiled with CommandEngineProcessor.");
+                + ". Ensure: (1) the class is annotated with @Command, (2) the annotationProcessor dependency"
+                + " is added for commandengine-processor, (3) module-info.java provides CommandAdapterFactory"
+                + " if using JPMS.");
     }
 
     private @NotNull List<CommandAdapterFactory> adapterFactories(@Nullable ClassLoader classLoader) {
@@ -336,6 +338,8 @@ public final class CommandEngine implements AutoCloseable {
                         failure, new IllegalStateException("Failed to close suggestion executor", exception));
             }
         }
+        adapterFactoriesByClassLoader.clear();
+        bootstrapAdapterFactories = null;
         if (failure != null) {
             throw failure;
         }

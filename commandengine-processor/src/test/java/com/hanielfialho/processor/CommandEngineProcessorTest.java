@@ -1273,6 +1273,6 @@ final class CommandEngineProcessorTest {
 
         assertThat(compilation).failed();
         assertThat(compilation)
-                .hadErrorContaining("@Command classes must declare at least one @Subcommand or onCommand handler");
+                .hadErrorContaining("@Command classes must declare at least one @Subcommand or root handler");
     }
 }

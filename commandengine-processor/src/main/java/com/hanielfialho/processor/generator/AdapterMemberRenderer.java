@@ -42,6 +42,8 @@ final class AdapterMemberRenderer {
         code.append("                return CommandResult.success();\n");
         code.append("            } catch (RuntimeException exception) {\n");
         code.append(
+                "                ADAPTER_HELPER_LOGGER.log(java.util.logging.Level.WARNING, \"Command execution failed\", exception);\n");
+        code.append(
                 "                return CommandResult.failure(FailureReason.EXCEPTION, DEFAULT_MESSAGES.internalError());\n");
         code.append("            }\n");
         code.append("        }\n\n");

@@ -83,7 +83,7 @@ public final class CommandModelReader {
             model.addSubcommand(subcommand.get());
         }
         if (model.getSubcommands().isEmpty()) {
-            error("@Command classes must declare at least one @Subcommand or onCommand handler", element);
+            error("@Command classes must declare at least one @Subcommand or root handler", element);
             return Optional.empty();
         }
 
@@ -97,13 +97,9 @@ public final class CommandModelReader {
         }
 
         var sub = element.getAnnotation(Subcommand.class);
-        var conventionRootHandler = sub == null && element.getSimpleName().contentEquals("onCommand");
-        if (sub == null && !conventionRootHandler) {
-            return Optional.empty();
-        }
-
-        if (sub != null && sub.value().isBlank()) {
-            error("@Subcommand path must not be blank", element);
+        var isRootHandler = (sub == null && element.getSimpleName().contentEquals("onCommand"))
+                || (sub != null && sub.value().isBlank());
+        if (sub == null && !isRootHandler) {
             return Optional.empty();
         }
 
@@ -122,7 +118,7 @@ public final class CommandModelReader {
         }
         var exec = element.getAnnotation(Execute.class);
         var methodSuggestions = element.getAnnotation(Suggestions.class);
-        var subcommandPath = conventionRootHandler ? "" : sub.value();
+        var subcommandPath = isRootHandler ? "" : sub.value();
         if (!isValidSubcommandPath(subcommandPath)) {
             error("@Subcommand path contains invalid characters or segments", element);
             return Optional.empty();
@@ -133,8 +129,7 @@ public final class CommandModelReader {
             error("@Subcommand handler must return void or int", element);
             return Optional.empty();
         }
-        var subcommandPermission =
-                conventionRootHandler || sub.permission().isBlank() ? commandPermission : sub.permission();
+        var subcommandPermission = isRootHandler || sub.permission().isBlank() ? commandPermission : sub.permission();
         if (!returnsVoid && exec != null && exec.async()) {
             error("@Execute(async = true) requires a void command handler", element);
             return Optional.empty();
@@ -143,7 +138,7 @@ public final class CommandModelReader {
                 element.getSimpleName().toString(),
                 subcommandPath,
                 subcommandPermission,
-                conventionRootHandler ? "" : sub.description(),
+                isRootHandler ? "" : sub.description(),
                 returnsVoid && exec != null && exec.async(),
                 returnsVoid);
 
@@ -476,8 +471,11 @@ public final class CommandModelReader {
         var arguments = subcommand.getParameters().stream()
                 .filter(parameter -> parameter.getKind() == ParameterModel.Kind.ARGUMENT)
                 .toList();
-        for (int index = 0; index < arguments.size() - 1; index++) {
-            if (arguments.get(index).isOptional()) {
+        boolean foundOptional = false;
+        for (var argument : arguments) {
+            if (!foundOptional && argument.isOptional()) {
+                foundOptional = true;
+            } else if (foundOptional && !argument.isOptional()) {
                 error("@Optional arguments must come after required arguments", element);
                 return false;
             }

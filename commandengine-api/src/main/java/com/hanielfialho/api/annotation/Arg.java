@@ -24,6 +24,9 @@ public @interface Arg {
      */
     String suggests() default "";
 
+    /**
+     * Minimum string length (only applied to {@code java.lang.String} arguments).
+     */
     int minLength() default 0;
 
     int maxLength() default Integer.MAX_VALUE;

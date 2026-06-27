@@ -163,6 +163,11 @@ final class AdapterHelperRenderer {
         code.append("        ArgumentTypeResolver<T> resolver = resolverFor(type);\n");
         code.append("        if (!resolver.supportsDefault()) {\n");
         code.append(
+                "            ADAPTER_HELPER_LOGGER.log(java.util.logging.Level.WARNING, () -> \"ArgumentTypeResolver for \"\n");
+        code.append("                    + type.getName()\n");
+        code.append(
+                "                    + \" does not support defaults; implement supportsDefault() and resolveDefault() to use @Optional\");\n");
+        code.append(
                 "            throw new IllegalArgumentException(\"ArgumentTypeResolver for \" + type.getName() + \" does not support default values\");\n");
         code.append("        }\n");
         code.append("        return resolver.resolveDefault(context, input);\n");

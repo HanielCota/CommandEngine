@@ -45,6 +45,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
     private final CommandMessages messages;
 
     private final Map<String, Command> registeredCommands = new ConcurrentHashMap<>();
+    private final Set<String> registeredRootNodes = ConcurrentHashMap.newKeySet();
 
     public PaperBrigadierBinding(@NotNull CommandDispatcher<CommandSource> dispatcher) {
         this(null, null, dispatcher, CommandMessages.defaults());
@@ -86,6 +87,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
             @NotNull LiteralCommandNode<CommandSource> node, @NotNull CommandMetadata metadata) {
         Preconditions.checkNotNull(node, "node");
         Preconditions.checkNotNull(metadata, "metadata");
+        registeredRootNodes.add(node.getName());
         dispatcher.getRoot().addChild(node);
 
         Plugin currentPlugin = plugin;
@@ -107,48 +109,45 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
     public void unregister(@NotNull String name) {
         Preconditions.checkNotNull(name, "name");
         String normalized = normalize(name);
-        String commandName = null;
+
         Command command = registeredCommands.get(name);
-        if (command != null) {
-            commandName = name;
-        } else {
-            for (Map.Entry<String, Command> entry : registeredCommands.entrySet()) {
-                if (normalize(entry.getKey()).equals(normalized)) {
-                    commandName = entry.getKey();
-                    command = entry.getValue();
-                    break;
-                }
-                String canonicalName = normalize(entry.getValue().getName());
-                if (canonicalName.equals(normalized)) {
-                    commandName = entry.getKey();
-                    command = entry.getValue();
-                    break;
-                }
-                List<String> aliases = entry.getValue().getAliases();
-                if (aliases != null && aliases.stream().map(this::normalize).anyMatch(normalized::equals)) {
-                    commandName = entry.getKey();
-                    command = entry.getValue();
-                    break;
-                }
-            }
+        String commandName = null;
+        if (command == null) {
+            command = findCommandByNormalizedName(normalized);
         }
-        if (commandName == null) {
+        if (command == null) {
             removeRootNode(name);
             return;
         }
 
-        registeredCommands.remove(commandName);
-        if (command == null) {
-            removeRootNode(commandName);
-            return;
+        for (Map.Entry<String, Command> entry : registeredCommands.entrySet()) {
+            if (entry.getValue() == command) {
+                commandName = entry.getKey();
+                break;
+            }
         }
-        removeRootNodes(commandName, command.getAliases());
+        if (commandName != null) {
+            registeredCommands.remove(commandName);
+        }
+        removeRootNode(name);
         CommandMap currentCommandMap = commandMap;
-        if (currentCommandMap == null) {
-            return;
+        if (currentCommandMap != null) {
+            command.unregister(currentCommandMap);
+            removeCommandMapEntries(currentCommandMap, command);
         }
-        command.unregister(currentCommandMap);
-        removeCommandMapEntries(currentCommandMap, command);
+    }
+
+    private @Nullable Command findCommandByNormalizedName(String normalized) {
+        for (Map.Entry<String, Command> entry : registeredCommands.entrySet()) {
+            if (normalize(entry.getValue().getName()).equals(normalized)) {
+                return entry.getValue();
+            }
+            List<String> aliases = entry.getValue().getAliases();
+            if (aliases != null && aliases.stream().map(this::normalize).anyMatch(normalized::equals)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     public void unregisterAll() {
@@ -164,6 +163,20 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
                 }
             }
         }
+        for (String name : List.copyOf(registeredRootNodes)) {
+            if (!registeredCommands.containsKey(name)) {
+                try {
+                    removeRootNode(name);
+                } catch (RuntimeException exception) {
+                    if (failure == null) {
+                        failure = exception;
+                    } else {
+                        failure.addSuppressed(exception);
+                    }
+                }
+            }
+        }
+        registeredRootNodes.clear();
         if (failure != null) {
             throw failure;
         }
@@ -174,16 +187,6 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
                 dispatcher,
                 name,
                 (fieldName, exception) -> log(() -> "Unable to remove Brigadier node " + name, exception));
-    }
-
-    private void removeRootNodes(String commandName, @Nullable List<String> aliases) {
-        removeRootNode(commandName);
-        if (aliases == null) {
-            return;
-        }
-        for (String alias : aliases) {
-            removeRootNode(alias);
-        }
     }
 
     private void log(Supplier<String> message, Throwable throwable) {

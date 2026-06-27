@@ -14,10 +14,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.jetbrains.annotations.NotNull;
 
 public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseable {
 
+    private static final Logger LOGGER = Logger.getLogger(VirtualThreadExecutor.class.getName());
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
 
     private final ExecutorService executor;
@@ -56,6 +59,7 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
             command.run();
             return CommandResult.success();
         } catch (Throwable exception) {
+            LOGGER.log(Level.WARNING, "Command execution failed", exception);
             return CommandResult.failure(FailureReason.EXCEPTION, messages.internalError());
         }
     }
@@ -92,7 +96,7 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
             timeoutExecutor.shutdownNow();
         }
         if (!executor.isShutdown()) {
-            executor.close();
+            executor.shutdownNow();
         }
     }
 

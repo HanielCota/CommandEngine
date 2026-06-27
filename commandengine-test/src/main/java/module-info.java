@@ -1,5 +1,4 @@
 module com.hanielfialho.test {
-    exports com.hanielfialho.test;
     exports com.hanielfialho.test.brigadier;
     exports com.hanielfialho.test.command;
     exports com.hanielfialho.test.engine;

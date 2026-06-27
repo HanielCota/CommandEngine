@@ -94,7 +94,7 @@ final class CaffeineCommandRateLimiterTest {
 
         @Override
         public boolean hasPermission(String permission) {
-            return true;
+            return false;
         }
 
         @Override

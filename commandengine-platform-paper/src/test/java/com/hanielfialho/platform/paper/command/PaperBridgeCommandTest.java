@@ -24,18 +24,22 @@ final class PaperBridgeCommandTest {
             new CommandMessages("internal-custom", "sender-custom", "syntax-custom", "permission-custom");
 
     @Test
-    void sendsNoPermissionMessageBeforeDispatching() {
+    void sendsBrigadierPermissionErrorMessageWhenRequiresRejects() {
+        var dispatcher = new CommandDispatcher<CommandSource>();
+        dispatcher.register(LiteralArgumentBuilder.<CommandSource>literal("root")
+                .requires(source -> false)
+                .executes(context -> 1));
         var sender = sender(false);
-        var command = bridge(new CommandDispatcher<>(), "root.use");
+        var command = bridge(dispatcher, "root.use");
 
         boolean result = command.execute(sender.sender(), "root", new String[0]);
 
-        assertThat(result).isTrue();
-        assertThat(sender.messages()).containsExactly("permission-custom");
+        assertThat(result).isFalse();
+        assertThat(sender.messages()).isNotEmpty();
     }
 
     @Test
-    void sendsSyntaxMessageForInvalidInput() {
+    void sendsBrigadierSyntaxMessageForInvalidInput() {
         var dispatcher = new CommandDispatcher<CommandSource>();
         dispatcher.register(LiteralArgumentBuilder.<CommandSource>literal("root")
                 .then(RequiredArgumentBuilder.<CommandSource, String>argument("name", StringArgumentType.word())
@@ -46,7 +50,7 @@ final class PaperBridgeCommandTest {
         boolean result = command.execute(sender.sender(), "root", new String[0]);
 
         assertThat(result).isFalse();
-        assertThat(sender.messages()).containsExactly("syntax-custom");
+        assertThat(sender.messages()).isNotEmpty();
     }
 
     @Test

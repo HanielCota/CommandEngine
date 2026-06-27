@@ -14,9 +14,12 @@ import org.jetbrains.annotations.NotNull;
 
 public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
 
+    private static final String DEFAULT_BYPASS_PERMISSION = "commandengine.bypass.ratelimit";
+
     private final com.github.benmanes.caffeine.cache.Cache<Key, AtomicLong> executions;
     private final int maxExecutions;
     private final long windowNanos;
+    private final String bypassPermission;
 
     public CaffeineCommandRateLimiter(@NotNull Duration window, int maxExecutions, long maximumSize) {
         this(window, maxExecutions, maximumSize, Ticker.systemTicker());
@@ -24,8 +27,18 @@ public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
 
     public CaffeineCommandRateLimiter(
             @NotNull Duration window, int maxExecutions, long maximumSize, @NotNull Ticker ticker) {
+        this(window, maxExecutions, maximumSize, ticker, DEFAULT_BYPASS_PERMISSION);
+    }
+
+    public CaffeineCommandRateLimiter(
+            @NotNull Duration window,
+            int maxExecutions,
+            long maximumSize,
+            @NotNull Ticker ticker,
+            @NotNull String bypassPermission) {
         Preconditions.checkNotNull(window, "window");
         Preconditions.checkNotNull(ticker, "ticker");
+        Preconditions.checkNotNull(bypassPermission, "bypassPermission");
         if (window.isZero() || window.isNegative()) {
             throw new IllegalArgumentException("window must be positive");
         }
@@ -37,6 +50,7 @@ public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
         }
         this.maxExecutions = maxExecutions;
         this.windowNanos = window.toNanos();
+        this.bypassPermission = bypassPermission;
         this.executions = Caffeine.newBuilder()
                 .expireAfter(new WindowExpiry<>(windowNanos))
                 .ticker(ticker)
@@ -46,6 +60,9 @@ public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
 
     @Override
     public boolean tryAcquire(@NotNull CommandSource source, @NotNull CommandPath path) {
+        if (source.hasPermission(bypassPermission)) {
+            return true;
+        }
         var key = new Key(Objects.requireNonNull(source, "source").getName(), Objects.requireNonNull(path, "path"));
         long current = executions.get(key, ignored -> new AtomicLong()).incrementAndGet();
         return current <= maxExecutions;

@@ -50,7 +50,7 @@ final class AdapterExecutionRenderer {
         for (int parameterIndex = 0; parameterIndex < parameters.size(); parameterIndex++) {
             ParameterModel parameter = parameters.get(parameterIndex);
             if (parameter.getKind() == ParameterModel.Kind.SENDER) {
-                arguments.set(parameterIndex, renderSenderParameter(code, parameter, senderIndex));
+                arguments.set(parameterIndex, renderSenderParameter(code, parameter, senderIndex, subIndex));
                 senderIndex++;
             }
         }
@@ -95,7 +95,7 @@ final class AdapterExecutionRenderer {
         renderIntInvocation(code, invocation, subIndex);
     }
 
-    private String renderSenderParameter(StringBuilder code, ParameterModel parameter, int senderIndex) {
+    private String renderSenderParameter(StringBuilder code, ParameterModel parameter, int senderIndex, int subIndex) {
         String variable = "sender" + senderIndex;
         if ("com.hanielfialho.api.source.CommandSource".equals(parameter.getTypeName())) {
             code.append("        ")
@@ -110,6 +110,15 @@ final class AdapterExecutionRenderer {
                     .append(" ")
                     .append(variable)
                     .append(")) {\n");
+            code.append(
+                    "            ADAPTER_HELPER_LOGGER.log(java.util.logging.Level.WARNING, () -> \"Expected sender type \"\n");
+            code.append("                    + \"")
+                    .append(AdapterRenderingSupport.escape(parameter.getTypeName()))
+                    .append("\"\n");
+            code.append("                    + \" but got \" + source.getHandle().getClass().getName()\n");
+            code.append("                    + \" for command path \" + COMMAND_PATH_")
+                    .append(subIndex)
+                    .append(");\n");
             code.append("            scheduler.execute(() -> source.sendMessage(messages.invalidSender()));\n");
             code.append("            return 0;\n");
             code.append("        }\n");

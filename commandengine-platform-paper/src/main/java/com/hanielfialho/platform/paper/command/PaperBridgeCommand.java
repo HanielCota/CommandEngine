@@ -46,20 +46,16 @@ public final class PaperBridgeCommand extends Command {
     @Override
     public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, @NotNull String[] args) {
         Objects.requireNonNull(args, "args");
-        if (!testPermissionSilent(sender)) {
-            sender.sendMessage(messages.noPermission());
-            return true;
-        }
         CommandSource source = new PaperCommandSource(sender);
         try {
             dispatcher.execute(commandLine(commandLabel, args), source);
             return true;
         } catch (CommandSyntaxException exception) {
-            sender.sendMessage(messages.invalidSyntax());
+            logger.log(Level.FINE, exception, () -> "Command syntax error for /" + commandLabel);
+            sender.sendMessage(exception.getMessage());
             return false;
         } catch (RuntimeException exception) {
-            logger.log(Level.WARNING, "Command execution failed for /" + commandLabel);
-            logger.log(Level.FINE, exception, () -> "Command execution failed for /" + commandLabel);
+            logger.log(Level.WARNING, "Command execution failed for /" + commandLabel, exception);
             sender.sendMessage(messages.internalError());
             return true;
         }

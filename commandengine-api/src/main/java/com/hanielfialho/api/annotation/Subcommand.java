@@ -11,6 +11,8 @@ public @interface Subcommand {
 
     /**
      * The subcommand path, for example {@code "reload"} or {@code "player kick"}.
+     * Use an empty string to declare a root handler (same as naming the method
+     * {@code onCommand} without the annotation).
      */
     String value();
 
