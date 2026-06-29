@@ -4,6 +4,53 @@ All notable changes to CommandEngine are documented here.
 
 The project follows semantic versioning once the public API becomes stable. Alpha releases may still contain breaking API changes.
 
+## v0.1.0-alpha.6 - 2026-06-29
+
+### Added
+
+- Added `suggestionTimeout` to `CommandEngineConfig` so Paper tab-completion timeout is configurable.
+- Added `CommandEngineConfig.with*` copy helpers for partial overrides.
+- Added `CommandRateLimiter` `clear()`/close support via `CaffeineCommandRateLimiter`.
+- Added validation to `CommandMetadata`, `SubcommandMetadata` and `ParameterMetadata` records.
+- Added `Range.Validator` to reject inverted `min`/`max` at runtime.
+- Added support for `@Command` on records and nested classes in the annotation processor.
+- Added inheritance support for `@SuggestionProvider` methods.
+- Added relative (`~`) and local (`^`) coordinate support to `LocationArgumentResolver`.
+- Added case-insensitive player lookup fallback in `PlayerArgumentResolver`.
+- Added `Shadow` plugin to `commandengine-example-paper` so it produces a runnable plugin jar.
+- Added `docs/ERROR_CATALOG.md` mapping failure reasons to configurable messages.
+
+### Changed
+
+- `CommandAdapterFactory` default overloads now require the full-argument `create(...)` to be implemented; simpler overloads throw `UnsupportedOperationException` to prevent silently dropping runtime services.
+- `CommandSource` now extends `PermissionHolder`.
+- `BrigadierAdapter.unregister(String)` default now throws `UnsupportedOperationException` instead of being a no-op.
+- `CommandEngine.close()` no longer closes user-supplied executors.
+- `CommandEngine.unregisterAll()` is now scoped to the engine's owner.
+- `SyncExecutor` and `VirtualThreadExecutor` no longer swallow `Error`; they only catch `Exception`.
+- `VirtualThreadExecutor` and `VirtualThreadSuggestionExecutor` now await termination on close.
+- `TelemetryCommandExecutor` records execution time before handling async failures.
+- `PaperBridgeCommand` now sends `messages.invalidSyntax()` for syntax errors and uses the configured suggestion timeout.
+- `LocationArgumentResolver` now uses `StringArgumentType.string()` instead of `greedyString()`.
+- `MaterialArgumentResolver` now uses non-legacy material matching.
+- `PaperCommandEngineConfigLoader` now validates config types and rejects non-positive values with clear messages.
+- JitPack group logic fixed to use the provided `GROUP` without artifact concatenation.
+- `commandengine-test` now exposes JUnit/AssertJ as `api` dependencies.
+
+### Fixed
+
+- Fixed `DefaultCommandRegistry.register()` atomicity so `ownerIndex` stays consistent on duplicate commands.
+- Fixed `CommandEngine.register(Object)` rollback to keep the previous adapter if restore fails.
+- Fixed type-use annotation detection in the processor (`@NotNull String` no longer breaks built-in type resolution).
+- Fixed `@Optional` on primitive numeric types requiring an explicit `defaultValue`.
+- Fixed `PaperPlatform` `PluginDisableListener` leak on manual `close()`.
+- Fixed README/AGENTS version mismatch and example plugin jar instructions.
+
+### Notes
+
+- This is an alpha release. Public API compatibility is not guaranteed.
+- Local validation passed with `.\gradlew.bat spotlessApply spotlessCheck build --stacktrace`.
+
 ## v0.1.0-alpha.5 - 2026-06-19
 
 ### Added

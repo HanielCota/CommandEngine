@@ -5,6 +5,7 @@ import com.hanielfialho.api.message.CommandMessages;
 import com.hanielfialho.api.registry.BrigadierAdapter;
 import com.hanielfialho.api.source.CommandSource;
 import com.hanielfialho.platform.paper.command.PaperBridgeCommand;
+import com.hanielfialho.runtime.CommandEngineConfig;
 import com.hanielfialho.runtime.util.Preconditions;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -44,32 +45,46 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
     private final CommandMap commandMap;
 
     private final CommandMessages messages;
+    private final CommandEngineConfig config;
 
     private final Map<String, Command> registeredCommands = new ConcurrentHashMap<>();
     private final Set<String> registeredRootNodes = ConcurrentHashMap.newKeySet();
 
     public PaperBrigadierBinding(@NotNull CommandDispatcher<CommandSource> dispatcher) {
-        this(null, null, dispatcher, CommandMessages.defaults());
+        this(null, null, dispatcher, CommandEngineConfig.defaults());
     }
 
     public PaperBrigadierBinding(@NotNull Plugin plugin, @NotNull CommandMap commandMap) {
-        this(plugin, commandMap, CommandMessages.defaults());
+        this(plugin, commandMap, new CommandDispatcher<>(), CommandEngineConfig.defaults());
     }
 
     public PaperBrigadierBinding(
             @NotNull Plugin plugin, @NotNull CommandMap commandMap, @NotNull CommandMessages messages) {
-        this(plugin, commandMap, new CommandDispatcher<>(), messages);
+        this(
+                plugin,
+                commandMap,
+                new CommandDispatcher<>(),
+                CommandEngineConfig.defaults().withMessages(messages));
+    }
+
+    public PaperBrigadierBinding(
+            @NotNull Plugin plugin,
+            @NotNull CommandMap commandMap,
+            @NotNull CommandEngineConfig config,
+            @NotNull CommandMessages messages) {
+        this(plugin, commandMap, new CommandDispatcher<>(), config);
     }
 
     private PaperBrigadierBinding(
             @Nullable Plugin plugin,
             @Nullable CommandMap commandMap,
             @NotNull CommandDispatcher<CommandSource> dispatcher,
-            @NotNull CommandMessages messages) {
+            @NotNull CommandEngineConfig config) {
         this.plugin = plugin;
         this.commandMap = commandMap;
         this.dispatcher = Preconditions.checkNotNull(dispatcher, "dispatcher");
-        this.messages = Preconditions.checkNotNull(messages, "messages");
+        this.config = Preconditions.checkNotNull(config, "config");
+        this.messages = config.messages();
     }
 
     @Override
@@ -100,7 +115,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         }
 
         removeClaimedPluginCommands(currentCommandMap, currentPlugin, metadata);
-        Command command = new PaperBridgeCommand(metadata, dispatcher, logger(), messages);
+        Command command = new PaperBridgeCommand(metadata, dispatcher, logger(), messages, config);
         currentCommandMap.register(currentPlugin.getName().toLowerCase(Locale.ROOT), command);
         registeredCommands.put(metadata.name(), command);
         return node;

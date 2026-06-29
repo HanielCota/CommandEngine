@@ -1,18 +1,18 @@
 package com.hanielfialho.test.source;
 
 import com.hanielfialho.api.source.CommandSource;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.jetbrains.annotations.NotNull;
 
 public class MockCommandSource implements CommandSource {
 
     private final String name;
     private final Set<String> permissions = new HashSet<>();
-    private final List<String> messages = new ArrayList<>();
+    private final List<String> messages = new CopyOnWriteArrayList<>();
 
     public MockCommandSource(@NotNull String name) {
         this.name = Objects.requireNonNull(name, "name");

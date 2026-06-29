@@ -14,6 +14,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -58,7 +59,7 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
         try {
             command.run();
             return CommandResult.success();
-        } catch (Throwable exception) {
+        } catch (Exception exception) {
             LOGGER.log(Level.WARNING, "Command execution failed", exception);
             return CommandResult.failure(FailureReason.EXCEPTION, messages.internalError());
         }
@@ -92,11 +93,22 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
 
     @Override
     public void close() {
-        if (!timeoutExecutor.isShutdown()) {
-            timeoutExecutor.shutdownNow();
+        shutdownAndAwait(timeoutExecutor, "timeout");
+        shutdownAndAwait(executor, "task");
+    }
+
+    private static void shutdownAndAwait(ExecutorService service, String name) {
+        if (service.isShutdown()) {
+            return;
         }
-        if (!executor.isShutdown()) {
-            executor.shutdownNow();
+        service.shutdownNow();
+        try {
+            if (!service.awaitTermination(5, TimeUnit.SECONDS)) {
+                LOGGER.log(Level.WARNING, "CommandEngine {0} executor did not terminate within 5 seconds", name);
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            LOGGER.log(Level.WARNING, "Interrupted while waiting for {0} executor termination", name);
         }
     }
 
@@ -104,7 +116,10 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
         try {
             return Executors.newVirtualThreadPerTaskExecutor();
         } catch (UnsupportedOperationException _) {
-            return Executors.newCachedThreadPool();
+            return Executors.newCachedThreadPool(Thread.ofPlatform()
+                    .name("commandengine-fallback-", 0)
+                    .daemon(true)
+                    .factory());
         }
     }
 }

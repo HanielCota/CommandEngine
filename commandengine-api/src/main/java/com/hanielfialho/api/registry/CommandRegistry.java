@@ -27,4 +27,7 @@ public interface CommandRegistry {
 
     @NotNull
     Collection<CommandAdapter> getAdapters();
+
+    @NotNull
+    Collection<CommandAdapter> getAdapters(@NotNull Object owner);
 }

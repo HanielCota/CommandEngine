@@ -390,7 +390,7 @@ public class VirtualThreadExecutor {
 
 - `CommandAdapter` tem `unregister()`.
 - `DefaultCommandRegistry` tem `unregisterAll(Object owner)`.
-- `PaperEventBridge` escuta `PluginDisableEvent` para auto-unregister.
+- `PluginDisableListener` escuta `PluginDisableEvent` para auto-unregister.
 
 ---
 

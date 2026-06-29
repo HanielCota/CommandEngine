@@ -38,6 +38,7 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
     private final CommandMessages messages;
     private final CommandRateLimiter rateLimiter;
     private final SuggestionExecutor suggestionExecutor;
+    private final PluginDisableListener disableListener;
 
     private static final String PLUGIN_ARG = "plugin";
 
@@ -49,14 +50,15 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
         this.rateLimiter = CommandEngine.configuredRateLimiter(config);
         this.scheduler = new PaperCommandScheduler(plugin);
         var server = plugin.getServer();
-        this.brigadier = new PaperBrigadierBinding(plugin, server.getCommandMap(), messages);
+        this.brigadier = new PaperBrigadierBinding(plugin, server.getCommandMap(), config, messages);
         this.executor = CommandEngine.virtualThreadExecutor(messages, config.asyncTimeout());
-        this.suggestionExecutor = CommandEngine.virtualThreadSuggestionExecutor(config.asyncTimeout());
+        this.suggestionExecutor = CommandEngine.virtualThreadSuggestionExecutor(config.suggestionTimeout());
         this.argumentResolvers = CommandEngine.defaultArgumentResolverRegistry()
                 .register(new PlayerArgumentResolver())
                 .register(new WorldArgumentResolver())
                 .register(new LocationArgumentResolver())
                 .register(new MaterialArgumentResolver());
+        this.disableListener = new PluginDisableListener(plugin, this::close);
     }
 
     public static @NotNull PaperPlatform create(@NotNull Plugin plugin) {
@@ -67,9 +69,7 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
     public static @NotNull PaperPlatform create(@NotNull Plugin plugin, @NotNull CommandEngineConfig config) {
         Preconditions.checkNotNull(plugin, PLUGIN_ARG);
         var platform = new PaperPlatform(plugin, config);
-        plugin.getServer()
-                .getPluginManager()
-                .registerEvents(new PluginDisableListener(plugin, platform::close), plugin);
+        plugin.getServer().getPluginManager().registerEvents(platform.disableListener, plugin);
         return platform;
     }
 
@@ -120,7 +120,7 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
 
     public void unregisterAll() {
         RuntimeException failure = null;
-        for (CommandAdapter adapter : List.copyOf(registry.getAdapters())) {
+        for (CommandAdapter adapter : List.copyOf(registry.getAdapters(owner()))) {
             try {
                 adapter.unregister(brigadier);
             } catch (RuntimeException exception) {
@@ -173,6 +173,18 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
                 failure = addSuppressed(
                         failure, new IllegalStateException("Failed to close suggestion executor", exception));
             }
+        }
+        if (rateLimiter instanceof AutoCloseable closeable) {
+            try {
+                closeable.close();
+            } catch (Exception exception) {
+                failure = addSuppressed(failure, new IllegalStateException("Failed to close rate limiter", exception));
+            }
+        }
+        try {
+            org.bukkit.event.HandlerList.unregisterAll(disableListener);
+        } catch (RuntimeException exception) {
+            failure = addSuppressed(failure, exception);
         }
         if (failure != null) {
             throw failure;

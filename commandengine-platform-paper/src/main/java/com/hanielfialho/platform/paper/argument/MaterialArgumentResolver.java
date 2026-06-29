@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 public final class MaterialArgumentResolver extends AbstractPaperArgumentResolver<Material> {
 
     public MaterialArgumentResolver() {
-        this(Material::matchMaterial);
+        this(name -> Material.matchMaterial(name, false));
     }
 
     public MaterialArgumentResolver(@NotNull Function<String, Material> lookup) {

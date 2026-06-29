@@ -1,6 +1,7 @@
 package com.hanielfialho.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hanielfialho.api.result.CommandResult;
 import com.hanielfialho.api.source.CommandSource;
@@ -48,27 +49,21 @@ final class CommandExecutorSecurityTest {
     void syncExecutorHandlesErrorWithoutExposingMessage() {
         var executor = new SyncExecutor();
 
-        CommandResult result = executor.executeSync(new TestSource(), () -> {
-            throw new AssertionError("secret-token");
-        });
-
-        assertThat(result).isInstanceOfSatisfying(CommandResult.Failure.class, failure -> {
-            assertThat(failure.message()).isEqualTo(INTERNAL_ERROR_MESSAGE);
-            assertThat(failure.message()).doesNotContain("secret-token");
-        });
+        assertThatThrownBy(() -> executor.executeSync(new TestSource(), () -> {
+                    throw new AssertionError("secret-token");
+                }))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("secret-token");
     }
 
     @Test
     void virtualThreadExecutorHandlesErrorWithoutExposingMessage() {
         try (var executor = new VirtualThreadExecutor()) {
-            CommandResult result = executor.executeSync(new TestSource(), () -> {
-                throw new AssertionError("secret-token");
-            });
-
-            assertThat(result).isInstanceOfSatisfying(CommandResult.Failure.class, failure -> {
-                assertThat(failure.message()).isEqualTo(INTERNAL_ERROR_MESSAGE);
-                assertThat(failure.message()).doesNotContain("secret-token");
-            });
+            assertThatThrownBy(() -> executor.executeSync(new TestSource(), () -> {
+                        throw new AssertionError("secret-token");
+                    }))
+                    .isInstanceOf(AssertionError.class)
+                    .hasMessageContaining("secret-token");
         }
     }
 

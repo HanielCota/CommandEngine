@@ -34,7 +34,7 @@ public final class DefaultCommandRegistry implements CommandRegistry {
     public void unregister(@NotNull CommandAdapter adapter) {
         Preconditions.checkNotNull(adapter, "adapter");
         var name = adapter.metadata().name();
-        adapters.remove(name, adapter);
+        adapters.computeIfPresent(name, (ignored, current) -> current == adapter ? null : current);
         ownerIndex.values().forEach(names -> names.remove(name));
     }
 

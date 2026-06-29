@@ -58,7 +58,7 @@ final class CommandEngineRegistrationTest {
                 .build()) {
             var adapter = new SimpleAdapter("external");
 
-            registry.register("external-owner", adapter);
+            registry.register("engine", adapter);
             adapter.register(brigadier);
 
             engine.unregisterAll();
@@ -82,9 +82,9 @@ final class CommandEngineRegistrationTest {
             var first = new FailingUnregisterAdapter("first");
             var second = new SimpleAdapter("second");
 
-            registry.register("owner", first);
+            registry.register("engine", first);
             first.register(brigadier);
-            registry.register("owner", second);
+            registry.register("engine", second);
             second.register(brigadier);
 
             assertThatThrownBy(engine::unregisterAll)
@@ -122,7 +122,7 @@ final class CommandEngineRegistrationTest {
     }
 
     @Test
-    void closeUnregistersAllAndClosesExecutor() {
+    void closeUnregistersAllAndLeavesCustomExecutorOpen() {
         var brigadier = new TestBrigadierAdapter();
         var registry = CommandEngine.defaultRegistry();
         var closableExecutor = new ClosableSyncExecutor();
@@ -134,16 +134,16 @@ final class CommandEngineRegistrationTest {
                 .build()) {
             var adapter = new SimpleAdapter("external");
 
-            registry.register("owner", adapter);
+            registry.register("engine", adapter);
             adapter.register(brigadier);
         }
 
         assertThat(registry.getAdapters()).isEmpty();
-        assertThat(closableExecutor.closed).isTrue();
+        assertThat(closableExecutor.closed).isFalse();
     }
 
     @Test
-    void closeClosesSuggestionExecutor() {
+    void closeDoesNotCloseCustomSuggestionExecutor() {
         var suggestionExecutor = new ClosableSuggestionExecutor();
         try (var engine = CommandEngine.builder()
                 .brigadier(new TestBrigadierAdapter())
@@ -153,7 +153,7 @@ final class CommandEngineRegistrationTest {
             assertThat(engine.registry().getAdapters()).isEmpty();
         }
 
-        assertThat(suggestionExecutor.closed).isTrue();
+        assertThat(suggestionExecutor.closed).isFalse();
     }
 
     @Test

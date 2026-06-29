@@ -33,3 +33,15 @@ jobs:
 
       - name: Validate formatting and build
         run: ./gradlew spotlessCheck build --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            build/reports/tests
+            commandengine-*/build/reports/tests
+            commandengine-*/build/reports/jacoco
+            commandengine-*/build/test-results/test/*.xml
+          if-no-files-found: ignore

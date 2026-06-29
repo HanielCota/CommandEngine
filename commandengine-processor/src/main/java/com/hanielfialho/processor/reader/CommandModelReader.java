@@ -45,8 +45,8 @@ public final class CommandModelReader {
     }
 
     public Optional<CommandDefinition> read(Element element) {
-        if (element.getKind() != ElementKind.CLASS) {
-            error("@Command can only be applied to classes", element);
+        if (element.getKind() != ElementKind.CLASS && element.getKind() != ElementKind.RECORD) {
+            error("@Command can only be applied to classes or records", element);
             return Optional.empty();
         }
 
@@ -186,6 +186,10 @@ public final class CommandModelReader {
             error("Command parameters must have at most one of @Sender, @Arg, or @Flag", parameter);
             return false;
         }
+        if ((optional != null || greedy != null) && annotationCount == 0) {
+            error("@Optional and @Greedy must be paired with @Arg, @Flag or @Sender", parameter);
+            return false;
+        }
         if (arg != null && arg.value().isBlank()) {
             error("@Arg value must not be blank", parameter);
             return false;
@@ -207,7 +211,7 @@ public final class CommandModelReader {
             return false;
         }
 
-        var typeName = parameter.asType().toString();
+        var typeName = typeName(parameter);
         var stringSequence = SupportedCommandTypes.isStringSequenceType(typeName);
         var inferredKind =
                 annotationCount == 0 ? inferParameterKind(parameter, subcommand, typeName, stringSequence) : null;
@@ -247,6 +251,13 @@ public final class CommandModelReader {
         }
         if (optional != null
                 && kind == ParameterModel.Kind.ARGUMENT
+                && SupportedCommandTypes.isNumericType(typeName)
+                && optional.defaultValue().isBlank()) {
+            error("@Optional requires an explicit defaultValue for numeric type " + typeName, parameter);
+            return false;
+        }
+        if (optional != null
+                && kind == ParameterModel.Kind.ARGUMENT
                 && !SupportedCommandTypes.isBuiltInArgumentType(typeName)
                 && optional.defaultValue().isBlank()) {
             error("@Optional defaultValue is required for custom argument types", parameter);
@@ -276,7 +287,7 @@ public final class CommandModelReader {
         if (kind == ParameterModel.Kind.FLAG
                 && !BOOLEAN_TYPE.equals(typeName)
                 && !BOOLEAN_OBJECT_TYPE.equals(typeName)) {
-            error("MVP @Flag parameters must be boolean or java.lang.Boolean", parameter);
+            error("@Flag parameters must be boolean or java.lang.Boolean", parameter);
             return false;
         }
 
@@ -371,7 +382,12 @@ public final class CommandModelReader {
     }
 
     private boolean isValidIntReturnType(javax.lang.model.type.TypeMirror returnType) {
-        return returnType.toString().equals("int") || returnType.toString().equals("java.lang.Integer");
+        var erased = processingEnv.getTypeUtils().erasure(returnType).toString();
+        return "int".equals(erased) || "java.lang.Integer".equals(erased);
+    }
+
+    private String typeName(VariableElement parameter) {
+        return parameter.asType().toString();
     }
 
     private boolean validateDefaultValue(String typeName, String defaultValue, Element element) {
@@ -533,7 +549,10 @@ public final class CommandModelReader {
     }
 
     private boolean isValidCommandName(String name) {
-        return name != null && !name.isBlank() && name.chars().allMatch(this::isValidCommandChar);
+        return name != null
+                && !name.isBlank()
+                && isValidCommandChar(name.codePointAt(0))
+                && name.codePoints().skip(1).allMatch(this::isValidCommandChar);
     }
 
     private String normalizeCommandLabel(String name) {
@@ -548,7 +567,11 @@ public final class CommandModelReader {
         if (path == null || path.isBlank()) {
             return true;
         }
-        for (String part : path.trim().split("\\s+")) {
+        var trimmed = path.trim();
+        if (!trimmed.equals(path)) {
+            return false;
+        }
+        for (String part : trimmed.split("\\s+")) {
             if (!isValidCommandName(part)) {
                 return false;
             }

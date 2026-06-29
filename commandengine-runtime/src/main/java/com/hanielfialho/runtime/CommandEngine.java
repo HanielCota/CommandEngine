@@ -46,6 +46,8 @@ public final class CommandEngine implements AutoCloseable {
     private final Object owner;
     private final Map<Object, CommandAdapter> adaptersByInstance;
     private final Map<ClassLoader, List<CommandAdapterFactory>> adapterFactoriesByClassLoader;
+    private final boolean customExecutor;
+    private final boolean customSuggestionExecutor;
 
     @Nullable
     private volatile List<CommandAdapterFactory> bootstrapAdapterFactories;
@@ -60,7 +62,9 @@ public final class CommandEngine implements AutoCloseable {
             @NotNull CommandTelemetry telemetry,
             @NotNull CommandRateLimiter rateLimiter,
             @NotNull SuggestionExecutor suggestionExecutor,
-            @NotNull Object owner) {
+            @NotNull Object owner,
+            boolean customExecutor,
+            boolean customSuggestionExecutor) {
         this.registry = Preconditions.checkNotNull(registry, "registry");
         this.brigadier = Preconditions.checkNotNull(brigadier, "brigadier");
         this.executor = Preconditions.checkNotNull(executor, "executor");
@@ -71,6 +75,8 @@ public final class CommandEngine implements AutoCloseable {
         this.rateLimiter = Preconditions.checkNotNull(rateLimiter, "rateLimiter");
         this.suggestionExecutor = Preconditions.checkNotNull(suggestionExecutor, "suggestionExecutor");
         this.owner = Preconditions.checkNotNull(owner, "owner");
+        this.customExecutor = customExecutor;
+        this.customSuggestionExecutor = customSuggestionExecutor;
         this.adaptersByInstance = Collections.synchronizedMap(new IdentityHashMap<>());
         this.adapterFactoriesByClassLoader = new ConcurrentHashMap<>();
     }
@@ -127,7 +133,9 @@ public final class CommandEngine implements AutoCloseable {
                 telemetry,
                 platform.rateLimiter(),
                 platform.suggestionExecutor(),
-                platform.owner());
+                platform.owner(),
+                false,
+                false);
     }
 
     public @NotNull CommandEngine register(@NotNull Object commandInstance) {
@@ -136,13 +144,13 @@ public final class CommandEngine implements AutoCloseable {
         synchronized (adaptersByInstance) {
             var existing = adaptersByInstance.get(commandInstance);
             if (existing != null) {
+                adaptersByInstance.remove(commandInstance);
                 unregister(existing);
             }
             try {
                 register(adapter);
                 adaptersByInstance.put(commandInstance, adapter);
             } catch (RuntimeException exception) {
-                adaptersByInstance.remove(commandInstance);
                 if (existing != null) {
                     try {
                         register(existing);
@@ -211,7 +219,7 @@ public final class CommandEngine implements AutoCloseable {
     public void unregisterAll() {
         List<CommandAdapter> adapters;
         synchronized (adaptersByInstance) {
-            adapters = List.copyOf(registry.getAdapters());
+            adapters = List.copyOf(registry.getAdapters(owner));
         }
 
         RuntimeException failure = null;
@@ -322,7 +330,7 @@ public final class CommandEngine implements AutoCloseable {
         } catch (RuntimeException exception) {
             failure = exception;
         }
-        if (executor instanceof AutoCloseable closeable) {
+        if (executor instanceof AutoCloseable closeable && !customExecutor) {
             try {
                 closeable.close();
             } catch (Exception exception) {
@@ -330,7 +338,7 @@ public final class CommandEngine implements AutoCloseable {
                         failure, new IllegalStateException("Failed to close command executor", exception));
             }
         }
-        if (suggestionExecutor instanceof AutoCloseable closeable) {
+        if (suggestionExecutor instanceof AutoCloseable closeable && !customSuggestionExecutor) {
             try {
                 closeable.close();
             } catch (Exception exception) {
@@ -498,7 +506,9 @@ public final class CommandEngine implements AutoCloseable {
                     telemetry,
                     rateLimiter,
                     selectedSuggestionExecutor,
-                    owner);
+                    owner,
+                    customExecutor,
+                    customSuggestionExecutor);
         }
     }
 }

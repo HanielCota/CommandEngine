@@ -27,19 +27,21 @@ final class AdapterFactoryRenderer {
         code.append("import com.hanielfialho.api.telemetry.CommandTelemetry;\n");
         code.append("import java.util.Objects;\n\n");
 
+        String simpleClassName = model.getSimpleClassName().replace(".", "_");
+
         code.append("@SuppressWarnings({\"all\", \"NullableProblems\"})\n");
         code.append("public final class ")
                 .append(factoryName)
                 .append(" implements CommandAdapterFactory<")
-                .append(model.getSimpleClassName())
+                .append(simpleClassName)
                 .append("> {\n\n");
         code.append("    @Override\n");
-        code.append("    public Class<").append(model.getSimpleClassName()).append("> type() {\n");
-        code.append("        return ").append(model.getSimpleClassName()).append(".class;\n");
+        code.append("    public Class<").append(simpleClassName).append("> type() {\n");
+        code.append("        return ").append(model.getQualifiedClassName()).append(".class;\n");
         code.append("    }\n\n");
         code.append("    @Override\n");
         code.append("    public CommandAdapter create(")
-                .append(model.getSimpleClassName())
+                .append(simpleClassName)
                 .append(" instance, CommandExecutor executor) {\n");
         code.append("        return new ")
                 .append(adapterName)
@@ -49,7 +51,7 @@ final class AdapterFactoryRenderer {
         code.append("\n");
         code.append("    @Override\n");
         code.append("    public CommandAdapter create(")
-                .append(model.getSimpleClassName())
+                .append(simpleClassName)
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers) {\n");
         code.append("        return new ")
                 .append(adapterName)
@@ -60,7 +62,7 @@ final class AdapterFactoryRenderer {
         code.append("\n");
         code.append("    @Override\n");
         code.append("    public CommandAdapter create(")
-                .append(model.getSimpleClassName())
+                .append(simpleClassName)
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers, ")
                 .append("CommandScheduler scheduler, CommandMessages messages, CommandTelemetry telemetry, ")
                 .append("CommandRateLimiter rateLimiter) {\n");
@@ -77,7 +79,7 @@ final class AdapterFactoryRenderer {
         code.append("\n");
         code.append("    @Override\n");
         code.append("    public CommandAdapter create(")
-                .append(model.getSimpleClassName())
+                .append(simpleClassName)
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers, ")
                 .append("CommandScheduler scheduler, CommandMessages messages, CommandTelemetry telemetry, ")
                 .append("CommandRateLimiter rateLimiter, SuggestionExecutor suggestionExecutor) {\n");

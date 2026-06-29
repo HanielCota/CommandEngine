@@ -319,6 +319,7 @@ O modulo Paper oferece:
 ```yaml
 commandengine:
   async-timeout-millis: 30000
+  suggestion-timeout-millis: 100
   messages:
     internal-error: "An internal error occurred while executing this command."
     invalid-sender: "This command cannot be executed by this sender."

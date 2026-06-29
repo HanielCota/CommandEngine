@@ -13,9 +13,13 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.jetbrains.annotations.NotNull;
 
 public final class VirtualThreadSuggestionExecutor implements SuggestionExecutor, AutoCloseable {
+
+    private static final Logger LOGGER = Logger.getLogger(VirtualThreadSuggestionExecutor.class.getName());
 
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final Duration timeout;
@@ -72,5 +76,13 @@ public final class VirtualThreadSuggestionExecutor implements SuggestionExecutor
     @Override
     public void close() {
         executor.shutdownNow();
+        try {
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                LOGGER.log(Level.WARNING, "CommandEngine suggestion executor did not terminate within 5 seconds");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            LOGGER.log(Level.WARNING, "Interrupted while waiting for suggestion executor termination");
+        }
     }
 }

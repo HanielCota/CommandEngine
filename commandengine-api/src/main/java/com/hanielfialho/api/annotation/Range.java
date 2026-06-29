@@ -4,6 +4,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Constrains a numeric argument to a minimum and maximum value.
@@ -20,4 +21,18 @@ public @interface Range {
     double min();
 
     double max();
+
+    /**
+     * Validates that {@code min} is less than or equal to {@code max}.
+     */
+    final class Validator {
+        private Validator() {}
+
+        public static void validate(@NotNull Range range) {
+            if (range.min() > range.max()) {
+                throw new IllegalArgumentException(
+                        "Range min (" + range.min() + ") must be <= max (" + range.max() + ")");
+            }
+        }
+    }
 }

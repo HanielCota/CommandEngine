@@ -4,6 +4,7 @@ import com.hanielfialho.api.command.CommandMetadata;
 import com.hanielfialho.api.message.CommandMessages;
 import com.hanielfialho.api.source.CommandSource;
 import com.hanielfialho.platform.paper.source.PaperCommandSource;
+import com.hanielfialho.runtime.CommandEngineConfig;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -23,21 +24,22 @@ import org.jetbrains.annotations.NotNull;
 
 public final class PaperBridgeCommand extends Command {
 
-    private static final long TAB_COMPLETE_TIMEOUT_MILLIS = 100L;
-
     private final CommandDispatcher<CommandSource> dispatcher;
     private final Logger logger;
     private final CommandMessages messages;
+    private final long tabCompleteTimeoutMillis;
 
     public PaperBridgeCommand(
             @NotNull CommandMetadata metadata,
             @NotNull CommandDispatcher<CommandSource> dispatcher,
             @NotNull Logger logger,
-            @NotNull CommandMessages messages) {
+            @NotNull CommandMessages messages,
+            @NotNull CommandEngineConfig config) {
         super(metadata.name());
         this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
         this.logger = Objects.requireNonNull(logger, "logger");
         this.messages = Objects.requireNonNull(messages, "messages");
+        this.tabCompleteTimeoutMillis = config.suggestionTimeout().toMillis();
         setDescription(metadata.description());
         setPermission(metadata.permission().isEmpty() ? null : metadata.permission());
         setAliases(metadata.aliases());
@@ -52,7 +54,7 @@ public final class PaperBridgeCommand extends Command {
             return true;
         } catch (CommandSyntaxException exception) {
             logger.log(Level.FINE, exception, () -> "Command syntax error for /" + commandLabel);
-            sender.sendMessage(exception.getMessage());
+            sender.sendMessage(messages.invalidSyntax());
             return false;
         } catch (RuntimeException exception) {
             logger.log(Level.WARNING, exception, () -> "Command execution failed for /" + commandLabel);
@@ -69,7 +71,7 @@ public final class PaperBridgeCommand extends Command {
         ParseResults<CommandSource> parse = dispatcher.parse(commandLine(alias, args), source);
         CompletableFuture<Suggestions> suggestionsFuture = dispatcher.getCompletionSuggestions(parse);
         try {
-            Suggestions suggestions = suggestionsFuture.get(TAB_COMPLETE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+            Suggestions suggestions = suggestionsFuture.get(tabCompleteTimeoutMillis, TimeUnit.MILLISECONDS);
             return suggestions.getList().stream().map(Suggestion::getText).toList();
         } catch (CompletionException exception) {
             logger.log(Level.FINE, exception, () -> "Command completion failed for /" + alias);

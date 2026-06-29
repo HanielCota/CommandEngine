@@ -52,6 +52,6 @@ final class PaperCommandEngineConfigLoaderTest {
 
         assertThatThrownBy(() -> PaperCommandEngineConfigLoader.load(yaml))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("asyncTimeout must be positive");
+                .hasMessageContaining("commandengine.async-timeout-millis must be a positive number");
     }
 }

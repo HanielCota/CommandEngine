@@ -4,4 +4,4 @@ before_install:
   - java -version
 
 install:
-  - ./gradlew clean publishToMavenLocal -x test --stacktrace
+  - ./gradlew clean publishToMavenLocal --stacktrace

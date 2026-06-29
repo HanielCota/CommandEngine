@@ -48,6 +48,8 @@ public final class TelemetryCommandExecutor implements CommandExecutor, AutoClos
             @NotNull CommandSource source, @NotNull CommandPath path, @NotNull Runnable command) {
         long started = System.nanoTime();
         return delegate.executeAsync(source, path, command).whenComplete((result, throwable) -> {
+            long elapsed = System.nanoTime() - started;
+            recordTelemetry(() -> telemetry.recordExecution(path, elapsed, true));
             if (throwable != null) {
                 recordTelemetry(() -> telemetry.recordFailure(path, "EXCEPTION", throwable));
                 return;

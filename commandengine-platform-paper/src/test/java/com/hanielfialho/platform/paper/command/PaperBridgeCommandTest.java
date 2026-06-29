@@ -117,7 +117,8 @@ final class PaperBridgeCommandTest {
                 new CommandMetadata("root", List.of(), "", permission, List.of()),
                 dispatcher,
                 Logger.getLogger(PaperBridgeCommandTest.class.getName()),
-                MESSAGES);
+                MESSAGES,
+                com.hanielfialho.runtime.CommandEngineConfig.defaults());
     }
 
     private static SenderProbe sender(boolean permitted) {

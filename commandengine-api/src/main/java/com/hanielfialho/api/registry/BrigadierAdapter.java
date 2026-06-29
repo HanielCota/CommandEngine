@@ -36,9 +36,10 @@ public interface BrigadierAdapter {
 
     /**
      * Removes a previously registered root when the platform supports it.
-     * Adapters that do not support dynamic unregistration may leave this as a no-op.
+     * Adapters that do not support dynamic unregistration must override this method.
      */
     default void unregister(@NotNull String name) {
         Objects.requireNonNull(name, "name");
+        throw new UnsupportedOperationException("Dynamic unregistration is not supported by this adapter");
     }
 }

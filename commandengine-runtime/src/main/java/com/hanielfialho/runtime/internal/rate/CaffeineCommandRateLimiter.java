@@ -12,7 +12,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import org.jetbrains.annotations.NotNull;
 
-public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
+public final class CaffeineCommandRateLimiter implements CommandRateLimiter, AutoCloseable {
 
     private static final String DEFAULT_BYPASS_PERMISSION = "commandengine.bypass.ratelimit";
 
@@ -56,6 +56,11 @@ public final class CaffeineCommandRateLimiter implements CommandRateLimiter {
                 .ticker(ticker)
                 .maximumSize(maximumSize)
                 .build();
+    }
+
+    @Override
+    public void close() {
+        executions.invalidateAll();
     }
 
     @Override

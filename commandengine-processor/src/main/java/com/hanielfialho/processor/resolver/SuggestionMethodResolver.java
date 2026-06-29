@@ -10,6 +10,8 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.tools.Diagnostic;
 
 public final class SuggestionMethodResolver {
@@ -22,8 +24,20 @@ public final class SuggestionMethodResolver {
 
     public Map<String, SuggestionMethodModel> resolve(TypeElement typeElement) {
         var methods = new HashMap<String, SuggestionMethodModel>();
-        for (var enclosed : typeElement.getEnclosedElements()) {
-            resolveMethod(enclosed, methods);
+        var current = typeElement;
+        while (current != null) {
+            for (var enclosed : current.getEnclosedElements()) {
+                resolveMethod(enclosed, methods);
+            }
+            var superType = current.getSuperclass();
+            if (superType == null || superType.toString().equals("java.lang.Object")) {
+                break;
+            }
+            var superElement = (TypeElement) processingEnv.getTypeUtils().asElement(superType);
+            if (superElement == null || superElement.equals(current)) {
+                break;
+            }
+            current = superElement;
         }
         return Map.copyOf(methods);
     }
@@ -74,7 +88,7 @@ public final class SuggestionMethodResolver {
             return;
         }
 
-        if (!"java.util.List<java.lang.String>".equals(method.getReturnType().toString())) {
+        if (!returnsListOfString(method)) {
             processingEnv
                     .getMessager()
                     .printMessage(
@@ -114,5 +128,26 @@ public final class SuggestionMethodResolver {
             }
         }
         return false;
+    }
+
+    private boolean returnsListOfString(ExecutableElement method) {
+        var returnType = method.getReturnType();
+        if (returnType.getKind() != TypeKind.DECLARED) {
+            return false;
+        }
+        var declared = (DeclaredType) returnType;
+        var element = (TypeElement) declared.asElement();
+        if (!element.getQualifiedName().contentEquals("java.util.List")) {
+            return false;
+        }
+        var typeArguments = declared.getTypeArguments();
+        if (typeArguments.size() != 1) {
+            return false;
+        }
+        var stringElement = processingEnv.getElementUtils().getTypeElement("java.lang.String");
+        if (stringElement == null) {
+            return false;
+        }
+        return processingEnv.getTypeUtils().isSameType(typeArguments.get(0), stringElement.asType());
     }
 }

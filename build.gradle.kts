@@ -39,14 +39,9 @@ tasks.named("build") {
 
 allprojects {
   val jitpackGroup = providers.environmentVariable("GROUP").orNull
-  val jitpackArtifact = providers.environmentVariable("ARTIFACT").orNull
   group =
-      if (
-          providers.environmentVariable("JITPACK").isPresent &&
-              jitpackGroup != null &&
-              jitpackArtifact != null
-      ) {
-        "$jitpackGroup.$jitpackArtifact"
+      if (providers.environmentVariable("JITPACK").isPresent && jitpackGroup != null) {
+        jitpackGroup
       } else {
         "com.hanielfialho"
       }

@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Platform-agnostic abstraction for a command source.
  */
-public interface CommandSource {
+public interface CommandSource extends PermissionHolder {
 
     /**
      * Returns whether this source has the given permission.

@@ -1,5 +1,6 @@
 plugins {
   java
+  id("com.gradleup.shadow") version "9.0.0-beta12"
 }
 
 dependencies {
@@ -15,4 +16,10 @@ dependencies {
     exclude(group = "com.google.auto.service")
   }
   annotationProcessor(project(":commandengine-processor"))
+}
+
+tasks {
+  named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+    archiveClassifier.set("")
+  }
 }

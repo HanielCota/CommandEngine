@@ -12,14 +12,15 @@ final class AdapterMemberRenderer {
     }
 
     void render(StringBuilder code, String adapterName) {
-        code.append("@SuppressWarnings({\"all\", \"NullableProblems\"})\n");
+        String simpleClassName = model.getSimpleClassName().replace(".", "_");
+        code.append("@SuppressWarnings({\"unchecked\", \"NullableProblems\"})\n");
         code.append("public final class ").append(adapterName).append(" implements CommandAdapter {\n\n");
         code.append("    private static final CommandMessages DEFAULT_MESSAGES = CommandMessages.defaults();\n");
         renderCommandPathConstants(code);
         code.append("\n");
         renderDirectExecutor(code);
-        renderFields(code);
-        renderConstructors(code, adapterName);
+        renderFields(code, simpleClassName);
+        renderConstructors(code, adapterName, simpleClassName);
     }
 
     private void renderCommandPathConstants(StringBuilder code) {
@@ -55,8 +56,8 @@ final class AdapterMemberRenderer {
         code.append("    };\n\n");
     }
 
-    private void renderFields(StringBuilder code) {
-        code.append("    private final ").append(model.getSimpleClassName()).append(" instance;\n");
+    private void renderFields(StringBuilder code, String simpleClassName) {
+        code.append("    private final ").append(simpleClassName).append(" instance;\n");
         code.append("    private final CommandExecutor executor;\n");
         code.append("    private final ArgumentResolverRegistry argumentResolvers;\n");
         code.append("    private final CommandScheduler scheduler;\n");
@@ -68,25 +69,25 @@ final class AdapterMemberRenderer {
                 "    private final List<String> registeredNames = new java.util.concurrent.CopyOnWriteArrayList<>();\n\n");
     }
 
-    private void renderConstructors(StringBuilder code, String adapterName) {
+    private void renderConstructors(StringBuilder code, String adapterName, String simpleClassName) {
         code.append("    public ")
                 .append(adapterName)
                 .append("(")
-                .append(model.getSimpleClassName())
+                .append(simpleClassName)
                 .append(" instance) {\n");
         code.append("        this(instance, DIRECT_EXECUTOR, null);\n");
         code.append("    }\n\n");
         code.append("    public ")
                 .append(adapterName)
                 .append("(")
-                .append(model.getSimpleClassName())
+                .append(simpleClassName)
                 .append(" instance, CommandExecutor executor) {\n");
         code.append("        this(instance, executor, null);\n");
         code.append("    }\n\n");
         code.append("    public ")
                 .append(adapterName)
                 .append("(")
-                .append(model.getSimpleClassName())
+                .append(simpleClassName)
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers) {\n");
         code.append(
                 "        this(instance, executor, argumentResolvers, CommandScheduler.DIRECT, DEFAULT_MESSAGES, CommandTelemetry.NOOP, CommandRateLimiter.NONE, SuggestionExecutor.DIRECT);\n");
@@ -94,7 +95,7 @@ final class AdapterMemberRenderer {
         code.append("    public ")
                 .append(adapterName)
                 .append("(")
-                .append(model.getSimpleClassName())
+                .append(simpleClassName)
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers, ")
                 .append(
                         "CommandScheduler scheduler, CommandMessages messages, CommandTelemetry telemetry, CommandRateLimiter rateLimiter) {\n");
@@ -105,7 +106,7 @@ final class AdapterMemberRenderer {
         code.append("    public ")
                 .append(adapterName)
                 .append("(")
-                .append(model.getSimpleClassName())
+                .append(simpleClassName)
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers, ")
                 .append(
                         "CommandScheduler scheduler, CommandMessages messages, CommandTelemetry telemetry, CommandRateLimiter rateLimiter, SuggestionExecutor suggestionExecutor) {\n");

@@ -16,6 +16,9 @@ public record CommandMetadata(
 
     public CommandMetadata {
         Objects.requireNonNull(name, "name");
+        if (name.isBlank()) {
+            throw new IllegalArgumentException("name must not be blank");
+        }
         aliases = List.copyOf(Objects.requireNonNull(aliases, "aliases"));
         Objects.requireNonNull(description, "description");
         Objects.requireNonNull(permission, "permission");

@@ -1,5 +1,6 @@
 plugins {
   java
+  `java-library`
 }
 
 dependencies {
@@ -8,9 +9,9 @@ dependencies {
   implementation(libs.brigadier)
   annotationProcessor(project(":commandengine-processor"))
   testAnnotationProcessor(project(":commandengine-processor"))
-  implementation(platform(libs.junit.bom))
-  implementation(libs.junit.jupiter)
-  implementation(libs.assertj)
+  api(platform(libs.junit.bom))
+  api(libs.junit.jupiter)
+  api(libs.assertj)
   compileOnly(libs.jetbrainsAnnotations)
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
