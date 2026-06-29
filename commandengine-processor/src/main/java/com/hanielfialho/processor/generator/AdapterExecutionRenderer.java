@@ -67,7 +67,9 @@ final class AdapterExecutionRenderer {
         for (int parameterIndex = 0; parameterIndex < parameters.size(); parameterIndex++) {
             ParameterModel parameter = parameters.get(parameterIndex);
             switch (parameter.getKind()) {
-                case SENDER -> {}
+                case SENDER -> {
+                    /* sender parameter is injected directly by the adapter */
+                }
                 case ARGUMENT -> {
                     if (isCustomArgumentType(parameter)) {
                         arguments.set(parameterIndex, renderCustomArgumentExpression(parameter));

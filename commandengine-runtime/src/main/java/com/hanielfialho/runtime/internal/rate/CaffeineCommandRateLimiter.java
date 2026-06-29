@@ -75,17 +75,11 @@ public final class CaffeineCommandRateLimiter implements CommandRateLimiter, Aut
 
     private record Key(@NotNull String senderName, @NotNull CommandPath path) {}
 
-    private static final class WindowExpiry<K> implements Expiry<K, AtomicLong> {
-
-        private final long windowNanos;
-
-        private WindowExpiry(long windowNanos) {
-            this.windowNanos = windowNanos;
-        }
+    private record WindowExpiry<K>(long windowNanos) implements Expiry<K, AtomicLong> {
 
         @Override
         public long expireAfterCreate(@NotNull K key, @NotNull AtomicLong value, long currentTime) {
-            return windowNanos;
+            return windowNanos();
         }
 
         @Override

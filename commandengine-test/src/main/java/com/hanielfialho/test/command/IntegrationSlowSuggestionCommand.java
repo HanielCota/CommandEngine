@@ -24,7 +24,7 @@ public final class IntegrationSlowSuggestionCommand {
     public List<String> names() {
         started.countDown();
         try {
-            release.await(5, TimeUnit.SECONDS); // result ignored: timeout is sufficient
+            var _ = release.await(5, TimeUnit.SECONDS); // result ignored: timeout is sufficient
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
         }

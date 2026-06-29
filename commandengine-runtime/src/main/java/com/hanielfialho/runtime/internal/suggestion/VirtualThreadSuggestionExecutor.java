@@ -48,10 +48,8 @@ public final class VirtualThreadSuggestionExecutor implements SuggestionExecutor
             }
         };
         var _ = result.whenComplete((value, failure) -> {
-            if (result.isCancelled() || failure instanceof TimeoutException) {
-                if (!futureTask.cancel(true)) {
-                    LOGGER.log(Level.FINE, "Failed to cancel timed-out suggestion task");
-                }
+            if ((result.isCancelled() || failure instanceof TimeoutException) && !futureTask.cancel(true)) {
+                LOGGER.log(Level.FINE, "Failed to cancel timed-out suggestion task");
             }
         });
         try {
@@ -98,7 +96,7 @@ public final class VirtualThreadSuggestionExecutor implements SuggestionExecutor
             if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
                 LOGGER.log(Level.WARNING, "CommandEngine suggestion executor did not terminate within 5 seconds");
             }
-        } catch (InterruptedException exception) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             LOGGER.log(Level.WARNING, "Interrupted while waiting for suggestion executor termination");
         }

@@ -20,7 +20,7 @@ public final class IntegrationWarpCommand {
 
     private final List<String> events = new CopyOnWriteArrayList<>();
 
-    public void onCommand(CommandSource source, String values[]) {
+    public void onCommand(CommandSource source, String[] values) {
         events.add("root:" + source.getName() + ":" + String.join(",", values));
     }
 

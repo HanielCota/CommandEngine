@@ -81,10 +81,9 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
         }
         Future<?> timeoutTask = timeoutExecutor.schedule(
                 () -> {
-                    if (result.complete(CommandResult.failure(FailureReason.EXCEPTION, messages.internalError()))) {
-                        if (!task.cancel(true)) {
-                            LOGGER.log(Level.FINE, "Failed to cancel timed-out command task");
-                        }
+                    if (result.complete(CommandResult.failure(FailureReason.EXCEPTION, messages.internalError()))
+                            && !task.cancel(true)) {
+                        LOGGER.log(Level.FINE, "Failed to cancel timed-out command task");
                     }
                 },
                 timeout.toMillis(),
@@ -115,7 +114,7 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
             if (!service.awaitTermination(5, TimeUnit.SECONDS)) {
                 LOGGER.log(Level.WARNING, "CommandEngine {0} executor did not terminate within 5 seconds", name);
             }
-        } catch (InterruptedException exception) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             LOGGER.log(Level.WARNING, "Interrupted while waiting for {0} executor termination", name);
         }

@@ -280,7 +280,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
             for (String key : keysToRemove) {
                 knownCommands.remove(key);
             }
-        } catch (UnsupportedOperationException exception) {
+        } catch (UnsupportedOperationException _) {
             replaceKnownCommandsMap(currentCommandMap, knownCommands, keysToRemove);
         }
     }

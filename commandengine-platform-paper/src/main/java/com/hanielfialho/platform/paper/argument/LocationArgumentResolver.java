@@ -99,9 +99,14 @@ public final class LocationArgumentResolver implements ArgumentTypeResolver<Loca
         } catch (NumberFormatException exception) {
             throw new IllegalArgumentException("Location coordinate must be a number", exception);
         }
-        double result = local
-                ? baseCoordinate.getAsDouble()
-                : (relative ? baseCoordinate.getAsDouble() + coordinate : coordinate);
+        double result;
+        if (local) {
+            result = baseCoordinate.getAsDouble();
+        } else if (relative) {
+            result = baseCoordinate.getAsDouble() + coordinate;
+        } else {
+            result = coordinate;
+        }
         if (!Double.isFinite(result) || result < MIN_COORDINATE || result > MAX_COORDINATE) {
             throw new IllegalArgumentException("Location coordinate is outside the supported world bounds");
         }

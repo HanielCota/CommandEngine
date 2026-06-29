@@ -37,7 +37,7 @@ final class AdapterFactoryRenderer {
                 .append("> {\n\n");
         code.append("    @Override\n");
         code.append("    public Class<").append(simpleClassName).append("> type() {\n");
-        code.append("        return ").append(model.getQualifiedClassName()).append(".class;\n");
+        code.append("        return ").append(model.getClassName()).append(".class;\n");
         code.append("    }\n\n");
         code.append("    @Override\n");
         code.append("    public CommandAdapter create(")

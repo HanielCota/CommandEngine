@@ -55,10 +55,6 @@ public final class CommandModel {
         return lastDot >= 0 ? className.substring(lastDot + 1) : className;
     }
 
-    public String getQualifiedClassName() {
-        return className;
-    }
-
     public String getAdapterClassName() {
         return getSimpleClassName().replace(".", "_") + "CommandAdapter";
     }

@@ -34,7 +34,7 @@ final class PluginDisableListenerTest {
 
     @Test
     void invokesCallbackWhenMatchingPluginIsDisabled() {
-        Plugin plugin = pluginProxy("plugin");
+        Plugin plugin = pluginProxy();
         var called = new AtomicBoolean(false);
         var listener = new PluginDisableListener(plugin, () -> called.set(true));
 
@@ -45,8 +45,8 @@ final class PluginDisableListenerTest {
 
     @Test
     void ignoresDisableEventForOtherPlugins() {
-        Plugin plugin = pluginProxy("plugin");
-        Plugin other = pluginProxy("other");
+        Plugin plugin = pluginProxy();
+        Plugin other = pluginProxy();
         var called = new AtomicBoolean(false);
         var listener = new PluginDisableListener(plugin, () -> called.set(true));
 
@@ -65,7 +65,7 @@ final class PluginDisableListenerTest {
                 });
     }
 
-    private static Plugin pluginProxy(String id) {
+    private static Plugin pluginProxy() {
         return (Plugin) Proxy.newProxyInstance(
                 Plugin.class.getClassLoader(), new Class<?>[] {Plugin.class}, (proxy, method, args) -> {
                     if ("equals".equals(method.getName()) && args != null && args.length == 1) {

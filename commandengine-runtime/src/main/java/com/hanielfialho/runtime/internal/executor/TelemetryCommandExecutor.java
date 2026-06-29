@@ -33,7 +33,7 @@ public final class TelemetryCommandExecutor implements CommandExecutor, AutoClos
             @NotNull CommandSource source, @NotNull CommandPath path, @NotNull Runnable command) {
         long started = System.nanoTime();
         CommandResult result = delegate.executeSync(source, path, command);
-        record(path, result, started, false);
+        recordResult(path, result, started, false);
         return result;
     }
 
@@ -54,7 +54,7 @@ public final class TelemetryCommandExecutor implements CommandExecutor, AutoClos
                 recordTelemetry(() -> telemetry.recordFailure(path, "EXCEPTION", throwable));
                 return;
             }
-            record(path, result, started, true);
+            recordResult(path, result, started, true);
         });
     }
 
@@ -65,7 +65,7 @@ public final class TelemetryCommandExecutor implements CommandExecutor, AutoClos
         }
     }
 
-    private void record(CommandPath path, CommandResult result, long started, boolean async) {
+    private void recordResult(CommandPath path, CommandResult result, long started, boolean async) {
         long elapsed = System.nanoTime() - started;
         recordTelemetry(() -> telemetry.recordExecution(path, elapsed, async));
         if (result instanceof CommandResult.Failure failure) {
