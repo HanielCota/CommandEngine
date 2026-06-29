@@ -55,7 +55,7 @@ public final class PaperBridgeCommand extends Command {
             sender.sendMessage(exception.getMessage());
             return false;
         } catch (RuntimeException exception) {
-            logger.log(Level.WARNING, "Command execution failed for /" + commandLabel, exception);
+            logger.log(Level.WARNING, exception, () -> "Command execution failed for /" + commandLabel);
             sender.sendMessage(messages.internalError());
             return true;
         }
@@ -74,7 +74,7 @@ public final class PaperBridgeCommand extends Command {
         } catch (CompletionException exception) {
             logger.log(Level.FINE, exception, () -> "Command completion failed for /" + alias);
             return List.of();
-        } catch (InterruptedException exception) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             return List.of();
         } catch (TimeoutException exception) {

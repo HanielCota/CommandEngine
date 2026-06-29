@@ -52,7 +52,9 @@ final class TelemetryCommandExecutorTest {
         }
 
         @Override
-        public void sendMessage(String message) {}
+        public void sendMessage(String message) {
+            // no-op: test source
+        }
 
         @Override
         public String getName() {

@@ -73,7 +73,7 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
         Future<?> task;
         try {
             task = executor.submit(() -> result.complete(executeSync(source, command)));
-        } catch (RejectedExecutionException exception) {
+        } catch (RejectedExecutionException _) {
             return CompletableFuture.completedFuture(
                     CommandResult.failure(FailureReason.EXCEPTION, messages.internalError()));
         }
@@ -103,7 +103,7 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
     private static @NotNull ExecutorService createTaskExecutor() {
         try {
             return Executors.newVirtualThreadPerTaskExecutor();
-        } catch (UnsupportedOperationException exception) {
+        } catch (UnsupportedOperationException _) {
             return Executors.newCachedThreadPool();
         }
     }

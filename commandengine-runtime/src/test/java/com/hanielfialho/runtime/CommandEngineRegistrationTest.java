@@ -166,7 +166,7 @@ final class CommandEngineRegistrationTest {
                 started.countDown();
                 try {
                     new CountDownLatch(1).await();
-                } catch (InterruptedException exception) {
+                } catch (InterruptedException _) {
                     interrupted.set(true);
                     Thread.currentThread().interrupt();
                 } finally {

@@ -401,9 +401,8 @@ public class VirtualThreadExecutor {
 ```toml
 [versions]
 java = "25"
-caffeine = "3.1.8"
-minecraft = "1.21.4"
-paper = "1.21.4-R0.1-SNAPSHOT"
+caffeine = "3.2.0"
+paper = "26.2.build.40-alpha"
 
 [libraries]
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }

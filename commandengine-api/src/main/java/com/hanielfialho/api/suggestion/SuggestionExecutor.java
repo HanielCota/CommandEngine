@@ -34,7 +34,7 @@ public interface SuggestionExecutor {
     private static <T> void completeFromTask(FutureTask<T> task, CompletableFuture<T> result) {
         try {
             result.complete(task.get());
-        } catch (CancellationException exception) {
+        } catch (CancellationException _) {
             result.cancel(false);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();

@@ -13,12 +13,13 @@ import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -156,30 +157,35 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
             try {
                 unregister(name);
             } catch (RuntimeException exception) {
-                if (failure == null) {
-                    failure = exception;
-                } else {
-                    failure.addSuppressed(exception);
-                }
+                failure = accumulate(failure, exception);
             }
         }
+        failure = unregisterOrphanRootNodes(failure);
+        registeredRootNodes.clear();
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    private RuntimeException unregisterOrphanRootNodes(RuntimeException failure) {
         for (String name : List.copyOf(registeredRootNodes)) {
             if (!registeredCommands.containsKey(name)) {
                 try {
                     removeRootNode(name);
                 } catch (RuntimeException exception) {
-                    if (failure == null) {
-                        failure = exception;
-                    } else {
-                        failure.addSuppressed(exception);
-                    }
+                    failure = accumulate(failure, exception);
                 }
             }
         }
-        registeredRootNodes.clear();
-        if (failure != null) {
-            throw failure;
+        return failure;
+    }
+
+    private static RuntimeException accumulate(RuntimeException existing, RuntimeException addition) {
+        if (existing == null) {
+            return addition;
         }
+        existing.addSuppressed(addition);
+        return existing;
     }
 
     private void removeRootNode(String name) {
@@ -200,17 +206,9 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         return plugin == null ? Logger.getLogger(PaperBrigadierBinding.class.getName()) : plugin.getLogger();
     }
 
-    @SuppressWarnings("unchecked")
     private void removeCommandMapEntries(CommandMap currentCommandMap, Command command) {
         try {
-            Map<String, Command> knownCommands = knownCommands(currentCommandMap);
-            for (Iterator<Map.Entry<String, Command>> iterator =
-                            knownCommands.entrySet().iterator();
-                    iterator.hasNext(); ) {
-                if (iterator.next().getValue() == command) {
-                    iterator.remove();
-                }
-            }
+            removeKnownCommandEntries(currentCommandMap, value -> value == command);
         } catch (ReflectiveOperationException exception) {
             log(() -> "Unable to remove command map entries for " + command.getName(), exception);
         }
@@ -233,16 +231,43 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
             for (Command claimed : claimedCommands) {
                 claimed.unregister(currentCommandMap);
             }
-            for (Iterator<Map.Entry<String, Command>> iterator =
-                            knownCommands.entrySet().iterator();
-                    iterator.hasNext(); ) {
-                if (claimedCommands.contains(iterator.next().getValue())) {
-                    iterator.remove();
-                }
-            }
+            removeKnownCommandEntries(currentCommandMap, claimedCommands::contains);
         } catch (ReflectiveOperationException exception) {
             log(() -> "Unable to claim Bukkit command map entries for " + metadata.name(), exception);
         }
+    }
+
+    private void removeKnownCommandEntries(CommandMap currentCommandMap, Predicate<Command> shouldRemove)
+            throws ReflectiveOperationException {
+        Map<String, Command> knownCommands = knownCommands(currentCommandMap);
+        Set<String> keysToRemove = new HashSet<>();
+        for (Map.Entry<String, Command> entry : knownCommands.entrySet()) {
+            if (shouldRemove.test(entry.getValue())) {
+                keysToRemove.add(entry.getKey());
+            }
+        }
+        if (keysToRemove.isEmpty()) {
+            return;
+        }
+        try {
+            for (String key : keysToRemove) {
+                knownCommands.remove(key);
+            }
+        } catch (UnsupportedOperationException exception) {
+            replaceKnownCommandsMap(currentCommandMap, knownCommands, keysToRemove);
+        }
+    }
+
+    private void replaceKnownCommandsMap(
+            CommandMap currentCommandMap, Map<String, Command> currentKnownCommands, Set<String> keysToRemove)
+            throws ReflectiveOperationException {
+        Map<String, Command> replacement = new LinkedHashMap<>(currentKnownCommands);
+        for (String key : keysToRemove) {
+            replacement.remove(key);
+        }
+        Field knownCommandsField = findField(currentCommandMap.getClass(), "knownCommands");
+        knownCommandsField.setAccessible(true);
+        knownCommandsField.set(currentCommandMap, replacement);
     }
 
     private boolean isOwnedByPlugin(Command command, Plugin currentPlugin) {
@@ -290,7 +315,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         while (current != null) {
             try {
                 return current.getDeclaredField(name);
-            } catch (NoSuchFieldException exception) {
+            } catch (NoSuchFieldException _) {
                 current = current.getSuperclass();
             }
         }

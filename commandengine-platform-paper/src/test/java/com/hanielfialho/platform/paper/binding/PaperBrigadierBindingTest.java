@@ -6,8 +6,11 @@ import com.hanielfialho.api.command.CommandMetadata;
 import com.hanielfialho.api.source.CommandSource;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import java.lang.reflect.Proxy;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
@@ -29,6 +32,24 @@ final class PaperBrigadierBindingTest {
         binding.register(LiteralArgumentBuilder.<CommandSource>literal("root"), metadata);
 
         assertThat(commandMap.getKnownCommands()).containsKeys("root", "r", "testplugin:root", "testplugin:r");
+
+        binding.unregister("root");
+
+        assertThat(commandMap.getKnownCommands()).doesNotContainKeys("root", "r", "testplugin:root", "testplugin:r");
+    }
+
+    @Test
+    void unregisterRemovesEntriesWhenKnownCommandsIsUnmodifiable() {
+        var knownCommands = new LinkedHashMap<String, org.bukkit.command.Command>();
+        var commandMap = new TestCommandMap(knownCommands);
+        var binding = new PaperBrigadierBinding(plugin(), commandMap);
+        var metadata = new CommandMetadata("root", List.of("r"), "", "", List.of());
+
+        binding.register(LiteralArgumentBuilder.<CommandSource>literal("root"), metadata);
+
+        assertThat(commandMap.getKnownCommands()).containsKeys("root", "r", "testplugin:root", "testplugin:r");
+
+        commandMap.setKnownCommands(Collections.unmodifiableMap(new LinkedHashMap<>(knownCommands)));
 
         binding.unregister("root");
 
@@ -110,6 +131,40 @@ final class PaperBrigadierBindingTest {
             return 0D;
         }
         return null;
+    }
+
+    private static final class TestCommandMap extends SimpleCommandMap {
+
+        private Map<String, Command> knownCommands;
+
+        private TestCommandMap(Map<String, Command> knownCommands) {
+            super(server(), knownCommands);
+            this.knownCommands = knownCommands;
+        }
+
+        @Override
+        public void clearCommands() {
+            knownCommands.clear();
+        }
+
+        @Override
+        public Command getCommand(String name) {
+            return knownCommands.get(name);
+        }
+
+        @Override
+        public Collection<Command> getCommands() {
+            return List.copyOf(knownCommands.values());
+        }
+
+        @Override
+        public Map<String, Command> getKnownCommands() {
+            return knownCommands;
+        }
+
+        private void setKnownCommands(Map<String, Command> knownCommands) {
+            this.knownCommands = knownCommands;
+        }
     }
 
     private static final class ExistingPluginCommand extends Command implements PluginIdentifiableCommand {

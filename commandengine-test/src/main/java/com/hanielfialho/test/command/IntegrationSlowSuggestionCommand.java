@@ -16,14 +16,16 @@ public final class IntegrationSlowSuggestionCommand {
     private final CountDownLatch release = new CountDownLatch(1);
 
     @Subcommand("run")
-    public void run(@Arg("name") @Suggestions("names") String name) {}
+    public void run(@Arg("name") @Suggestions("names") String name) {
+        // no-op: used only for testing suggestion execution
+    }
 
     @SuggestionProvider(value = "names", async = true)
     public List<String> names() {
         started.countDown();
         try {
-            release.await(5, TimeUnit.SECONDS);
-        } catch (InterruptedException exception) {
+            release.await(5, TimeUnit.SECONDS); // result ignored: timeout is sufficient
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
         }
         return List.of("spawn");

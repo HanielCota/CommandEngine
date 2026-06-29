@@ -12,4 +12,6 @@ module com.hanielfialho.platform.paper {
     requires brigadier;
     requires java.logging;
     requires static org.jetbrains.annotations;
+    requires transitive net.kyori.adventure.api;
+    requires transitive com.google.common;
 }

@@ -5,7 +5,7 @@ Este guia mostra o caminho mínimo para usar o CommandEngine em Java 25.
 ## Requisitos
 
 - JDK 25.
-- Gradle 9.5.0.
+- Gradle 9.6.1.
 - Annotation processor habilitado no módulo que contém os comandos.
 - Build com Spotless: `./gradlew build` executa `spotlessCheck` antes de compilar.
 

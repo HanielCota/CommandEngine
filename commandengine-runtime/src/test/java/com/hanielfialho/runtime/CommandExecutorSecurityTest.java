@@ -109,7 +109,9 @@ final class CommandExecutorSecurityTest {
         }
 
         @Override
-        public void sendMessage(String message) {}
+        public void sendMessage(String message) {
+            // no-op: test source
+        }
 
         @Override
         public String getName() {

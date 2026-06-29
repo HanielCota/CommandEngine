@@ -35,6 +35,8 @@ import javax.tools.Diagnostic;
 public final class CommandModelReader {
 
     private static final int MAX_FLAGS_PER_SUBCOMMAND = 5;
+    private static final String BOOLEAN_TYPE = "boolean";
+    private static final String BOOLEAN_OBJECT_TYPE = "java.lang.Boolean";
 
     private final ProcessingEnvironment processingEnv;
 
@@ -212,11 +214,16 @@ public final class CommandModelReader {
         if (annotationCount == 0 && inferredKind.isEmpty()) {
             return false;
         }
-        var kind = annotationCount == 0
-                ? inferredKind.get()
-                : sender != null
-                        ? ParameterModel.Kind.SENDER
-                        : arg != null ? ParameterModel.Kind.ARGUMENT : ParameterModel.Kind.FLAG;
+        ParameterModel.Kind kind;
+        if (annotationCount == 0) {
+            kind = inferredKind.get();
+        } else if (sender != null) {
+            kind = ParameterModel.Kind.SENDER;
+        } else if (arg != null) {
+            kind = ParameterModel.Kind.ARGUMENT;
+        } else {
+            kind = ParameterModel.Kind.FLAG;
+        }
 
         if (kind == ParameterModel.Kind.SENDER && parameter.asType().getKind().isPrimitive()) {
             error("@Sender parameters must not be primitive types", parameter);
@@ -240,15 +247,14 @@ public final class CommandModelReader {
         }
         if (optional != null
                 && kind == ParameterModel.Kind.ARGUMENT
-                && !SupportedCommandTypes.isBuiltInArgumentType(typeName)) {
-            if (optional.defaultValue().isBlank()) {
-                error("@Optional defaultValue is required for custom argument types", parameter);
-                return false;
-            }
+                && !SupportedCommandTypes.isBuiltInArgumentType(typeName)
+                && optional.defaultValue().isBlank()) {
+            error("@Optional defaultValue is required for custom argument types", parameter);
+            return false;
         }
         if (optional != null
                 && kind == ParameterModel.Kind.ARGUMENT
-                && ("boolean".equals(typeName) || "java.lang.Boolean".equals(typeName))
+                && (BOOLEAN_TYPE.equals(typeName) || BOOLEAN_OBJECT_TYPE.equals(typeName))
                 && !optional.defaultValue().isEmpty()
                 && !"true".equals(optional.defaultValue())
                 && !"false".equals(optional.defaultValue())) {
@@ -267,7 +273,9 @@ public final class CommandModelReader {
             return false;
         }
 
-        if (kind == ParameterModel.Kind.FLAG && !"boolean".equals(typeName) && !"java.lang.Boolean".equals(typeName)) {
+        if (kind == ParameterModel.Kind.FLAG
+                && !BOOLEAN_TYPE.equals(typeName)
+                && !BOOLEAN_OBJECT_TYPE.equals(typeName)) {
             error("MVP @Flag parameters must be boolean or java.lang.Boolean", parameter);
             return false;
         }
@@ -382,7 +390,7 @@ public final class CommandModelReader {
                 }
             }
             return true;
-        } catch (NumberFormatException exception) {
+        } catch (NumberFormatException _) {
             error("Invalid default value \"" + defaultValue + "\" for type " + typeName, element);
             return false;
         }
@@ -396,7 +404,7 @@ public final class CommandModelReader {
         if (isUnannotatedSender(subcommand, typeName)) {
             return Optional.of(ParameterModel.Kind.SENDER);
         }
-        if ("boolean".equals(typeName) || "java.lang.Boolean".equals(typeName)) {
+        if (BOOLEAN_TYPE.equals(typeName) || BOOLEAN_OBJECT_TYPE.equals(typeName)) {
             error("Unannotated boolean parameters are ambiguous; use @Flag or @Arg", parameter);
             return Optional.empty();
         }

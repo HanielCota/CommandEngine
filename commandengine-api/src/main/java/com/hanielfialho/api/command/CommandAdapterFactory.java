@@ -25,8 +25,8 @@ public interface CommandAdapterFactory<T> {
             @NotNull T instance,
             @NotNull CommandExecutor executor,
             @NotNull ArgumentResolverRegistry argumentResolvers) {
-        Objects.requireNonNull(argumentResolvers, "argumentResolvers");
-        return create(instance, executor);
+        throw new UnsupportedOperationException(
+                "Full-argument create(...) must be implemented; this overload is not supported.");
     }
 
     default @NotNull CommandAdapter create(
@@ -41,7 +41,7 @@ public interface CommandAdapterFactory<T> {
         Objects.requireNonNull(messages, "messages");
         Objects.requireNonNull(telemetry, "telemetry");
         Objects.requireNonNull(rateLimiter, "rateLimiter");
-        return create(instance, executor, argumentResolvers);
+        return create(instance, executor, argumentResolvers, scheduler, messages, telemetry, rateLimiter, SuggestionExecutor.DIRECT);
     }
 
     default @NotNull CommandAdapter create(

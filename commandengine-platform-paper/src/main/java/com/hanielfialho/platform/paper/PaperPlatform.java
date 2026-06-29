@@ -39,8 +39,10 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
     private final CommandRateLimiter rateLimiter;
     private final SuggestionExecutor suggestionExecutor;
 
+    private static final String PLUGIN_ARG = "plugin";
+
     private PaperPlatform(@NotNull Plugin plugin, @NotNull CommandEngineConfig config) {
-        this.plugin = Preconditions.checkNotNull(plugin, "plugin");
+        this.plugin = Preconditions.checkNotNull(plugin, PLUGIN_ARG);
         Preconditions.checkNotNull(config, "config");
         this.registry = CommandEngine.defaultRegistry();
         this.messages = config.messages();
@@ -58,12 +60,12 @@ public final class PaperPlatform implements CommandEngine.Platform, AutoCloseabl
     }
 
     public static @NotNull PaperPlatform create(@NotNull Plugin plugin) {
-        Preconditions.checkNotNull(plugin, "plugin");
+        Preconditions.checkNotNull(plugin, PLUGIN_ARG);
         return create(plugin, PaperCommandEngineConfigLoader.load(plugin));
     }
 
     public static @NotNull PaperPlatform create(@NotNull Plugin plugin, @NotNull CommandEngineConfig config) {
-        Preconditions.checkNotNull(plugin, "plugin");
+        Preconditions.checkNotNull(plugin, PLUGIN_ARG);
         var platform = new PaperPlatform(plugin, config);
         plugin.getServer()
                 .getPluginManager()

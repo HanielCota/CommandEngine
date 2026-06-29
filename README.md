@@ -17,7 +17,7 @@ adapters podem reutilizar as mesmas anotacoes, o mesmo runtime e os mesmos contr
 
 ## Destaques
 
-- Java 25 e Gradle 9.5.0.
+- Java 25 e Gradle 9.6.1.
 - API modular com JPMS.
 - Annotation processor para gerar adapters Brigadier.
 - Registro de comandos, aliases, permissoes e subcomandos.
@@ -115,7 +115,7 @@ CommandEngine/
 
 - JDK 25.
 - Gradle wrapper incluido no repositorio.
-- Paper API `1.21.4-R0.1-SNAPSHOT` para o modulo Paper.
+- Paper API `26.2.build.40-alpha` para o modulo Paper.
 
 Verifique sua versao do Java:
 

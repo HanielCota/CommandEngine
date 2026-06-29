@@ -10,16 +10,24 @@ public interface CommandTelemetry {
 
     CommandTelemetry NOOP = new CommandTelemetry() {
         @Override
-        public void recordExecution(@NotNull CommandPath path, long nanos, boolean async) {}
+        public void recordExecution(@NotNull CommandPath path, long nanos, boolean async) {
+            // no-op: telemetry not enabled
+        }
 
         @Override
-        public void recordFailure(@NotNull CommandPath path, @NotNull String reason) {}
+        public void recordFailure(@NotNull CommandPath path, @NotNull String reason) {
+            // no-op: telemetry not enabled
+        }
 
         @Override
-        public void recordFailure(@NotNull CommandPath path, @NotNull String reason, @NotNull Throwable throwable) {}
+        public void recordFailure(@NotNull CommandPath path, @NotNull String reason, @NotNull Throwable throwable) {
+            // no-op: telemetry not enabled
+        }
 
         @Override
-        public void recordSuggestion(@NotNull CommandPath path, long nanos, int suggestionCount) {}
+        public void recordSuggestion(@NotNull CommandPath path, long nanos, int suggestionCount) {
+            // no-op: telemetry not enabled
+        }
     };
 
     void recordExecution(@NotNull CommandPath path, long nanos, boolean async);

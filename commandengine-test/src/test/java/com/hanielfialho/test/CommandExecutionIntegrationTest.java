@@ -432,7 +432,9 @@ final class CommandExecutionIntegrationTest {
         }
 
         @Override
-        public void recordSuggestion(CommandPath path, long nanos, int suggestionCount) {}
+        public void recordSuggestion(CommandPath path, long nanos, int suggestionCount) {
+            // no-op: telemetry spy
+        }
 
         private List<String> executions() {
             return List.copyOf(executions);
