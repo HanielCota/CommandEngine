@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.jetbrains.annotations.NotNull;
 
+@SuppressWarnings("java:S2201")
 public final class DefaultCommandRegistry implements CommandRegistry {
 
     private final Map<String, CommandAdapter> adapters = new ConcurrentHashMap<>();
@@ -30,7 +31,6 @@ public final class DefaultCommandRegistry implements CommandRegistry {
                 .add(name);
     }
 
-    @SuppressWarnings("java:S2201")
     @Override
     public void unregister(@NotNull CommandAdapter adapter) {
         Preconditions.checkNotNull(adapter, "adapter");

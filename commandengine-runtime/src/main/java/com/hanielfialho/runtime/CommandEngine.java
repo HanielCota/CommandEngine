@@ -138,6 +138,7 @@ public final class CommandEngine implements AutoCloseable {
                 false);
     }
 
+    @SuppressWarnings("java:S2201")
     public @NotNull CommandEngine register(@NotNull Object commandInstance) {
         Preconditions.checkNotNull(commandInstance, "commandInstance");
         CommandAdapter adapter = instantiateAdapter(commandInstance);
@@ -194,6 +195,7 @@ public final class CommandEngine implements AutoCloseable {
         }
     }
 
+    @SuppressWarnings("java:S2201")
     public @NotNull CommandEngine unregister(@NotNull CommandAdapter adapter) {
         Preconditions.checkNotNull(adapter, "adapter");
         RuntimeException failure = null;

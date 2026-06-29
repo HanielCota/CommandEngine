@@ -42,6 +42,7 @@ public final class SuggestionMethodResolver {
         return Map.copyOf(methods);
     }
 
+    @SuppressWarnings("java:S2201")
     private void resolveMethod(Element enclosed, Map<String, SuggestionMethodModel> methods) {
         if (enclosed.getKind() != ElementKind.METHOD) {
             return;

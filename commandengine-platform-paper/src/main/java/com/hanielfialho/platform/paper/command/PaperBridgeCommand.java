@@ -50,7 +50,7 @@ public final class PaperBridgeCommand extends Command {
         Objects.requireNonNull(args, "args");
         CommandSource source = new PaperCommandSource(sender);
         try {
-            dispatcher.execute(commandLine(commandLabel, args), source);
+            var _ = dispatcher.execute(commandLine(commandLabel, args), source);
             return true;
         } catch (CommandSyntaxException exception) {
             logger.log(Level.FINE, exception, () -> "Command syntax error for /" + commandLabel);

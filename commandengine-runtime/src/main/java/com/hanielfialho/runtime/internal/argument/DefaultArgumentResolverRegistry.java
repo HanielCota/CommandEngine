@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.jetbrains.annotations.NotNull;
 
+@SuppressWarnings("java:S2201")
 public final class DefaultArgumentResolverRegistry implements ArgumentResolverRegistry {
 
     private final Map<Class<?>, ArgumentTypeResolver<?>> resolvers = new ConcurrentHashMap<>();

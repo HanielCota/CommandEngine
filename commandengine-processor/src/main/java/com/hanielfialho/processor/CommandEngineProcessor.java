@@ -39,6 +39,7 @@ public final class CommandEngineProcessor extends AbstractProcessor {
         return true;
     }
 
+    @SuppressWarnings("java:S2201")
     private void processCommand(CommandDefinition definition) {
         try {
             var model = definition.model();

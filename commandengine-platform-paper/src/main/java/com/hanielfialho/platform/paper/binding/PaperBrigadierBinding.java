@@ -34,6 +34,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Paper binding that dispatches generated commands through a local Brigadier dispatcher.
  */
+@SuppressWarnings("java:S2201")
 public final class PaperBrigadierBinding implements BrigadierAdapter {
 
     private final CommandDispatcher<CommandSource> dispatcher;
@@ -263,7 +264,6 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         }
     }
 
-    @SuppressWarnings("java:S2201")
     private void removeKnownCommandEntries(CommandMap currentCommandMap, Predicate<Command> shouldRemove)
             throws ReflectiveOperationException {
         Map<String, Command> knownCommands = knownCommands(currentCommandMap);
@@ -285,7 +285,6 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         }
     }
 
-    @SuppressWarnings("java:S2201")
     private void replaceKnownCommandsMap(
             CommandMap currentCommandMap, Map<String, Command> currentKnownCommands, Set<String> keysToRemove)
             throws ReflectiveOperationException {

@@ -46,7 +46,8 @@ public final class LocationArgumentResolver implements ArgumentTypeResolver<Loca
         return true;
     }
 
-    private @NotNull Location resolveRaw(CommandContext<?> context, String raw) {
+    private @NotNull Location resolveRaw(@NotNull CommandContext<?> context, @NotNull String raw) {
+        Objects.requireNonNull(raw, "raw");
         var parts = raw.split(",");
         if (parts.length != 3 && parts.length != 4) {
             throw new IllegalArgumentException("Location must be x,y,z or world,x,y,z");
@@ -66,7 +67,8 @@ public final class LocationArgumentResolver implements ArgumentTypeResolver<Loca
                 parseCoordinate(parts[offset + 2], () -> base.getZ()));
     }
 
-    private static Location baseLocation(Object source, World fallback) {
+    private static @NotNull Location baseLocation(@NotNull Object source, @NotNull World fallback) {
+        Objects.requireNonNull(fallback, "fallback");
         if (source instanceof CommandSource commandSource && commandSource.getHandle() instanceof Entity entity) {
             var location = entity.getLocation();
             if (location != null) {
@@ -76,7 +78,9 @@ public final class LocationArgumentResolver implements ArgumentTypeResolver<Loca
         return new Location(fallback, 0, 0, 0);
     }
 
-    private static double parseCoordinate(String value, DoubleSupplier baseCoordinate) {
+    private static double parseCoordinate(@NotNull String value, @NotNull DoubleSupplier baseCoordinate) {
+        Objects.requireNonNull(value, "value");
+        Objects.requireNonNull(baseCoordinate, "baseCoordinate");
         var trimmed = value.trim();
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("Location coordinate must not be empty");

@@ -47,7 +47,7 @@ public final class VirtualThreadSuggestionExecutor implements SuggestionExecutor
                 completeFromTask(this, result);
             }
         };
-        result.whenComplete((value, failure) -> {
+        var _ = result.whenComplete((value, failure) -> {
             if (result.isCancelled() || failure instanceof TimeoutException) {
                 if (!futureTask.cancel(true)) {
                     LOGGER.log(Level.FINE, "Failed to cancel timed-out suggestion task");
@@ -57,25 +57,35 @@ public final class VirtualThreadSuggestionExecutor implements SuggestionExecutor
         try {
             executor.execute(futureTask);
         } catch (RejectedExecutionException exception) {
-            result.completeExceptionally(exception);
+            completeExceptionally(result, exception);
         }
         return result.orTimeout(timeout.toNanos(), TimeUnit.NANOSECONDS);
     }
 
     private static <T> void completeFromTask(FutureTask<T> task, CompletableFuture<T> result) {
         try {
-            result.complete(task.get());
+            completeResult(result, task.get());
         } catch (CancellationException _) {
             if (!result.cancel(false)) {
                 LOGGER.log(Level.FINE, "Failed to cancel suggestion result");
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            result.completeExceptionally(exception);
+            completeExceptionally(result, exception);
         } catch (ExecutionException exception) {
             Throwable cause = exception.getCause();
-            result.completeExceptionally(cause == null ? exception : cause);
+            completeExceptionally(result, cause == null ? exception : cause);
         }
+    }
+
+    @SuppressWarnings("java:S2201")
+    private static <T> void completeResult(CompletableFuture<T> result, T value) {
+        result.complete(value);
+    }
+
+    @SuppressWarnings("java:S2201")
+    private static <T> void completeExceptionally(CompletableFuture<T> result, Throwable throwable) {
+        result.completeExceptionally(throwable);
     }
 
     @Override

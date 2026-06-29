@@ -33,17 +33,27 @@ public interface SuggestionExecutor {
 
     private static <T> void completeFromTask(FutureTask<T> task, CompletableFuture<T> result) {
         try {
-            result.complete(task.get());
+            completeResult(result, task.get());
         } catch (CancellationException _) {
             if (!result.cancel(false)) {
                 // result was already completed; nothing to do
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            result.completeExceptionally(exception);
+            completeExceptionally(result, exception);
         } catch (ExecutionException exception) {
             Throwable cause = exception.getCause();
-            result.completeExceptionally(cause == null ? exception : cause);
+            completeExceptionally(result, cause == null ? exception : cause);
         }
+    }
+
+    @SuppressWarnings("java:S2201")
+    private static <T> void completeResult(CompletableFuture<T> result, T value) {
+        result.complete(value);
+    }
+
+    @SuppressWarnings("java:S2201")
+    private static <T> void completeExceptionally(CompletableFuture<T> result, Throwable throwable) {
+        result.completeExceptionally(throwable);
     }
 }

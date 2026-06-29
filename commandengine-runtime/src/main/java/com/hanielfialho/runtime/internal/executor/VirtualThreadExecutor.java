@@ -74,15 +74,14 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
         CompletableFuture<CommandResult> result = new CompletableFuture<>();
         Future<?> task;
         try {
-            task = executor.submit(() -> result.complete(executeSync(source, command)));
+            task = executor.submit(() -> completeResult(result, executeSync(source, command)));
         } catch (RejectedExecutionException _) {
             return CompletableFuture.completedFuture(
                     CommandResult.failure(FailureReason.EXCEPTION, messages.internalError()));
         }
         Future<?> timeoutTask = timeoutExecutor.schedule(
                 () -> {
-                    if (!result.isDone()) {
-                        result.complete(CommandResult.failure(FailureReason.EXCEPTION, messages.internalError()));
+                    if (result.complete(CommandResult.failure(FailureReason.EXCEPTION, messages.internalError()))) {
                         if (!task.cancel(true)) {
                             LOGGER.log(Level.FINE, "Failed to cancel timed-out command task");
                         }
@@ -90,7 +89,7 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
                 },
                 timeout.toMillis(),
                 java.util.concurrent.TimeUnit.MILLISECONDS);
-        result.whenComplete((ignoredResult, ignoredThrowable) -> {
+        var _ = result.whenComplete((ignoredResult, ignoredThrowable) -> {
             if (!timeoutTask.cancel(false)) {
                 LOGGER.log(Level.FINE, "Failed to cancel command timeout task");
             }
@@ -120,6 +119,11 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
             Thread.currentThread().interrupt();
             LOGGER.log(Level.WARNING, "Interrupted while waiting for {0} executor termination", name);
         }
+    }
+
+    @SuppressWarnings("java:S2201")
+    private static <T> void completeResult(CompletableFuture<T> result, T value) {
+        result.complete(value);
     }
 
     private static @NotNull ExecutorService createTaskExecutor() {
