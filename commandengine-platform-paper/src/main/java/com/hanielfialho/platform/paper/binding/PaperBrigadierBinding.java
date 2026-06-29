@@ -136,8 +136,10 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
             return;
         }
 
+        final Command commandToUnregister = command;
+
         for (Map.Entry<String, Command> entry : registeredCommands.entrySet()) {
-            if (entry.getValue() == command) {
+            if (entry.getValue() == commandToUnregister) {
                 commandName = entry.getKey();
                 break;
             }
@@ -148,8 +150,13 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         removeRootNode(name);
         CommandMap currentCommandMap = commandMap;
         if (currentCommandMap != null) {
-            command.unregister(currentCommandMap);
-            removeCommandMapEntries(currentCommandMap, command);
+            if (!commandToUnregister.unregister(currentCommandMap)) {
+                logger().log(
+                                Level.FINE,
+                                () -> "Command " + commandToUnregister.getName()
+                                        + " was not registered in the command map");
+            }
+            removeCommandMapEntries(currentCommandMap, commandToUnregister);
         }
     }
 
@@ -244,7 +251,11 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
                 return;
             }
             for (Command claimed : claimedCommands) {
-                claimed.unregister(currentCommandMap);
+                if (!claimed.unregister(currentCommandMap)) {
+                    logger().log(
+                                    Level.FINE,
+                                    () -> "Command " + claimed.getName() + " was not registered in the command map");
+                }
             }
             removeKnownCommandEntries(currentCommandMap, claimedCommands::contains);
         } catch (ReflectiveOperationException exception) {
@@ -252,6 +263,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         }
     }
 
+    @SuppressWarnings("java:S2201")
     private void removeKnownCommandEntries(CommandMap currentCommandMap, Predicate<Command> shouldRemove)
             throws ReflectiveOperationException {
         Map<String, Command> knownCommands = knownCommands(currentCommandMap);
@@ -273,6 +285,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         }
     }
 
+    @SuppressWarnings("java:S2201")
     private void replaceKnownCommandsMap(
             CommandMap currentCommandMap, Map<String, Command> currentKnownCommands, Set<String> keysToRemove)
             throws ReflectiveOperationException {

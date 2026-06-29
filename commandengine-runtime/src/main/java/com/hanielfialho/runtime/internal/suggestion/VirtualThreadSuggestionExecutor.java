@@ -2,6 +2,7 @@ package com.hanielfialho.runtime.internal.suggestion;
 
 import com.hanielfialho.api.suggestion.SuggestionExecutor;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -48,7 +49,9 @@ public final class VirtualThreadSuggestionExecutor implements SuggestionExecutor
         };
         result.whenComplete((value, failure) -> {
             if (result.isCancelled() || failure instanceof TimeoutException) {
-                futureTask.cancel(true);
+                if (!futureTask.cancel(true)) {
+                    LOGGER.log(Level.FINE, "Failed to cancel timed-out suggestion task");
+                }
             }
         });
         try {
@@ -63,7 +66,9 @@ public final class VirtualThreadSuggestionExecutor implements SuggestionExecutor
         try {
             result.complete(task.get());
         } catch (CancellationException _) {
-            result.cancel(false);
+            if (!result.cancel(false)) {
+                LOGGER.log(Level.FINE, "Failed to cancel suggestion result");
+            }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             result.completeExceptionally(exception);
@@ -75,7 +80,10 @@ public final class VirtualThreadSuggestionExecutor implements SuggestionExecutor
 
     @Override
     public void close() {
-        executor.shutdownNow();
+        List<Runnable> pending = executor.shutdownNow();
+        if (!pending.isEmpty()) {
+            LOGGER.log(Level.FINE, "Cancelled {0} pending suggestion tasks", pending.size());
+        }
         try {
             if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
                 LOGGER.log(Level.WARNING, "CommandEngine suggestion executor did not terminate within 5 seconds");

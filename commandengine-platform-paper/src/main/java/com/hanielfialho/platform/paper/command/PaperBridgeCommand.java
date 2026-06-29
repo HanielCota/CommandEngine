@@ -80,7 +80,9 @@ public final class PaperBridgeCommand extends Command {
             Thread.currentThread().interrupt();
             return List.of();
         } catch (TimeoutException exception) {
-            suggestionsFuture.cancel(true);
+            if (!suggestionsFuture.cancel(true)) {
+                logger.log(Level.FINE, "Failed to cancel timed-out command completion for /{0}", alias);
+            }
             logger.log(Level.FINE, exception, () -> "Command completion timed out for /" + alias);
             return List.of();
         } catch (Exception exception) {

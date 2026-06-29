@@ -35,7 +35,9 @@ public interface SuggestionExecutor {
         try {
             result.complete(task.get());
         } catch (CancellationException _) {
-            result.cancel(false);
+            if (!result.cancel(false)) {
+                // result was already completed; nothing to do
+            }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             result.completeExceptionally(exception);

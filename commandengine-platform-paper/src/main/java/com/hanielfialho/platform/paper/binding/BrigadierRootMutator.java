@@ -22,7 +22,7 @@ final class BrigadierRootMutator {
         removeRootMapEntry(dispatcher, "literals", name, failureHandler);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "java:S2201"})
     private static void removeRootMapEntry(
             CommandDispatcher<CommandSource> dispatcher,
             String fieldName,

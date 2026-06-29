@@ -7,6 +7,7 @@ import com.hanielfialho.api.result.FailureReason;
 import com.hanielfialho.api.source.CommandSource;
 import com.hanielfialho.runtime.util.Preconditions;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -82,12 +83,18 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
                 () -> {
                     if (!result.isDone()) {
                         result.complete(CommandResult.failure(FailureReason.EXCEPTION, messages.internalError()));
-                        task.cancel(true);
+                        if (!task.cancel(true)) {
+                            LOGGER.log(Level.FINE, "Failed to cancel timed-out command task");
+                        }
                     }
                 },
                 timeout.toMillis(),
                 java.util.concurrent.TimeUnit.MILLISECONDS);
-        result.whenComplete((ignoredResult, ignoredThrowable) -> timeoutTask.cancel(false));
+        result.whenComplete((ignoredResult, ignoredThrowable) -> {
+            if (!timeoutTask.cancel(false)) {
+                LOGGER.log(Level.FINE, "Failed to cancel command timeout task");
+            }
+        });
         return result;
     }
 
@@ -101,7 +108,10 @@ public final class VirtualThreadExecutor implements CommandExecutor, AutoCloseab
         if (service.isShutdown()) {
             return;
         }
-        service.shutdownNow();
+        List<Runnable> pending = service.shutdownNow();
+        if (!pending.isEmpty()) {
+            LOGGER.log(Level.FINE, "Cancelled {0} pending tasks for {1} executor", new Object[] {pending.size(), name});
+        }
         try {
             if (!service.awaitTermination(5, TimeUnit.SECONDS)) {
                 LOGGER.log(Level.WARNING, "CommandEngine {0} executor did not terminate within 5 seconds", name);

@@ -30,6 +30,7 @@ public final class DefaultCommandRegistry implements CommandRegistry {
                 .add(name);
     }
 
+    @SuppressWarnings("java:S2201")
     @Override
     public void unregister(@NotNull CommandAdapter adapter) {
         Preconditions.checkNotNull(adapter, "adapter");
