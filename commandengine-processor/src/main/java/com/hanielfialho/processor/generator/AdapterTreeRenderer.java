@@ -36,6 +36,7 @@ final class AdapterTreeRenderer {
     private static final String INDENT_8 = "        ";
     private static final String EXECUTES_METHOD = ".executes(this::execute";
     private static final String THEN_METHOD = ".then(";
+    private static final String LITERAL_PREFIX = "literal";
 
     private final CommandModel model;
     private int generatedNodeCounter;
@@ -121,7 +122,7 @@ final class AdapterTreeRenderer {
         if (!rootSubcommand) {
             pathParts = subcommand.getPath().trim().split("\\s+");
             for (int pathIndex = 0; pathIndex < pathParts.length; pathIndex++) {
-                String variable = "literal" + subIndex + "_" + pathIndex;
+                String variable = LITERAL_PREFIX + subIndex + "_" + pathIndex;
                 code.append(LITERAL_BUILDER_DECLARATION)
                         .append(variable)
                         .append(" = LiteralArgumentBuilder.<CommandSource>literal(\"")
@@ -135,7 +136,7 @@ final class AdapterTreeRenderer {
                 }
                 code.append(";\n");
             }
-            attachTo = "literal" + subIndex + "_" + (pathParts.length - 1);
+            attachTo = LITERAL_PREFIX + subIndex + "_" + (pathParts.length - 1);
         }
 
         List<ParameterModel> commandArguments = subcommand.getParameters().stream()
@@ -160,7 +161,7 @@ final class AdapterTreeRenderer {
         if (!rootSubcommand) {
             for (int pathIndex = pathParts.length - 1; pathIndex > 0; pathIndex--) {
                 code.append(INDENT_8)
-                        .append("literal")
+                        .append(LITERAL_PREFIX)
                         .append(subIndex)
                         .append("_")
                         .append(pathIndex - 1)

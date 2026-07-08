@@ -43,10 +43,10 @@ final class AdapterHelperRenderer {
         code.append(
                 "            if (parsedNode.getNode() instanceof ArgumentCommandNode && parsedNode.getNode().getName().equals(name)) {\n");
         code.append("                return true;\n");
-        code.append("            }\n");
-        code.append("        }\n");
+        code.append(BRACE_12);
+        code.append(BRACE_8);
         code.append("        return false;\n");
-        code.append("    }\n\n");
+        code.append(BRACE_4);
 
         code.append(
                 "    private static boolean hasFlag(CommandContext<CommandSource> context, String name, char shorthand) {\n");
@@ -78,7 +78,7 @@ final class AdapterHelperRenderer {
         code.append("                if (start >= 0) {\n");
         code.append("                    arguments.add(input.substring(start, index));\n");
         code.append("                    start = -1;\n");
-        code.append("                }\n");
+        code.append(BRACE_16);
         code.append("            } else if (start < 0) {\n");
         code.append("                start = index;\n");
         code.append("            }\n");
@@ -142,7 +142,7 @@ final class AdapterHelperRenderer {
                 "                    if (suggestion != null && suggestion.regionMatches(true, 0, remaining, 0, remaining.length())) {\n");
         code.append("                        builder.suggest(suggestion);\n");
         code.append("                        suggestionCount++;\n");
-        code.append("                    }\n");
+        code.append(BRACE_20);
         code.append("                }\n");
         code.append("                recordSuggestion(telemetry, path, started, suggestionCount);\n");
         code.append("            } catch (RuntimeException exception) {\n");

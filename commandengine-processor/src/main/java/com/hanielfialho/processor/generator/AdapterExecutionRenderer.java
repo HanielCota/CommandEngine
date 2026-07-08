@@ -291,28 +291,28 @@ final class AdapterExecutionRenderer {
 
     private String argumentBuilderType(ParameterModel parameter) {
         return switch (parameter.getTypeName()) {
-            case "int", "java.lang.Integer" -> "Integer";
-            case "long", "java.lang.Long" -> "Long";
-            case "float", "java.lang.Float" -> "Float";
-            case "double", "java.lang.Double" -> "Double";
-            case "boolean", "java.lang.Boolean" -> "Boolean";
-            case "java.lang.String" -> "String";
-            case "java.lang.String[]", "java.util.List<java.lang.String>" -> "String";
+            case "int", JAVA_INT_OBJ -> "Integer";
+            case "long", JAVA_LONG_OBJ -> "Long";
+            case TYPE_FLOAT, JAVA_FLOAT_OBJ -> "Float";
+            case TYPE_DOUBLE, JAVA_DOUBLE_OBJ -> "Double";
+            case TYPE_BOOLEAN, JAVA_BOOLEAN_OBJ -> "Boolean";
+            case JAVA_STRING -> "String";
+            case JAVA_STRING_ARRAY, JAVA_STRING_LIST -> "String";
             default -> "Object";
         };
     }
 
     private String argumentTypeExpression(ParameterModel parameter) {
         return switch (parameter.getTypeName()) {
-            case "java.lang.String[]", "java.util.List<java.lang.String>" -> "StringArgumentType.greedyString()";
-            case "java.lang.String" ->
+            case JAVA_STRING_ARRAY, JAVA_STRING_LIST -> "StringArgumentType.greedyString()";
+            case JAVA_STRING ->
                 parameter.isGreedy() ? "StringArgumentType.greedyString()" : "StringArgumentType.string()";
-            case "int", "java.lang.Integer" -> numericArgumentType("IntegerArgumentType.integer", parameter, "int");
-            case "long", "java.lang.Long" -> numericArgumentType("LongArgumentType.longArg", parameter, "long");
-            case "float", "java.lang.Float" -> numericArgumentType("FloatArgumentType.floatArg", parameter, "float");
-            case "double", "java.lang.Double" ->
-                numericArgumentType("DoubleArgumentType.doubleArg", parameter, "double");
-            case "boolean", "java.lang.Boolean" -> "BoolArgumentType.bool()";
+            case "int", JAVA_INT_OBJ -> numericArgumentType("IntegerArgumentType.integer", parameter, "int");
+            case "long", JAVA_LONG_OBJ -> numericArgumentType("LongArgumentType.longArg", parameter, "long");
+            case TYPE_FLOAT, JAVA_FLOAT_OBJ -> numericArgumentType("FloatArgumentType.floatArg", parameter, TYPE_FLOAT);
+            case TYPE_DOUBLE, JAVA_DOUBLE_OBJ ->
+                numericArgumentType("DoubleArgumentType.doubleArg", parameter, TYPE_DOUBLE);
+            case TYPE_BOOLEAN, JAVA_BOOLEAN_OBJ -> "BoolArgumentType.bool()";
             default -> "argumentTypeFor(" + AdapterRenderingSupport.classLiteral(parameter.getTypeName()) + ")";
         };
     }
@@ -368,17 +368,15 @@ final class AdapterExecutionRenderer {
     private String extractionExpression(ParameterModel parameter) {
         String argumentName = "\"" + AdapterRenderingSupport.escape(parameter.getName()) + "\"";
         return switch (parameter.getTypeName()) {
-            case "java.lang.String" ->
-                "stripFormattingCodes(StringArgumentType.getString(context, " + argumentName + "))";
-            case "java.lang.String[]" ->
+            case JAVA_STRING -> "stripFormattingCodes(StringArgumentType.getString(context, " + argumentName + "))";
+            case JAVA_STRING_ARRAY ->
                 "splitArguments(StringArgumentType.getString(context, " + argumentName + ")).toArray(String[]::new)";
-            case "java.util.List<java.lang.String>" ->
-                "splitArguments(StringArgumentType.getString(context, " + argumentName + "))";
-            case "int", "java.lang.Integer" -> "IntegerArgumentType.getInteger(context, " + argumentName + ")";
-            case "long", "java.lang.Long" -> "LongArgumentType.getLong(context, " + argumentName + ")";
-            case "float", "java.lang.Float" -> "FloatArgumentType.getFloat(context, " + argumentName + ")";
-            case "double", "java.lang.Double" -> "DoubleArgumentType.getDouble(context, " + argumentName + ")";
-            case "boolean", "java.lang.Boolean" -> "BoolArgumentType.getBool(context, " + argumentName + ")";
+            case JAVA_STRING_LIST -> "splitArguments(StringArgumentType.getString(context, " + argumentName + "))";
+            case "int", JAVA_INT_OBJ -> "IntegerArgumentType.getInteger(context, " + argumentName + ")";
+            case "long", JAVA_LONG_OBJ -> "LongArgumentType.getLong(context, " + argumentName + ")";
+            case TYPE_FLOAT, JAVA_FLOAT_OBJ -> "FloatArgumentType.getFloat(context, " + argumentName + ")";
+            case TYPE_DOUBLE, JAVA_DOUBLE_OBJ -> "DoubleArgumentType.getDouble(context, " + argumentName + ")";
+            case TYPE_BOOLEAN, JAVA_BOOLEAN_OBJ -> "BoolArgumentType.getBool(context, " + argumentName + ")";
             default ->
                 "resolveArgument(context, "
                         + argumentName
@@ -391,18 +389,18 @@ final class AdapterExecutionRenderer {
     private String defaultValueExpression(ParameterModel parameter) {
         String value = parameter.getDefaultValue();
         return switch (parameter.getTypeName()) {
-            case "java.lang.String" -> "\"" + AdapterRenderingSupport.escape(value == null ? "" : value) + "\"";
-            case "java.lang.String[]" ->
+            case JAVA_STRING -> "\"" + AdapterRenderingSupport.escape(value == null ? "" : value) + "\"";
+            case JAVA_STRING_ARRAY ->
                 "splitArguments(\""
                         + AdapterRenderingSupport.escape(value == null ? "" : value)
                         + "\").toArray(String[]::new)";
-            case "java.util.List<java.lang.String>" ->
+            case JAVA_STRING_LIST ->
                 "splitArguments(\"" + AdapterRenderingSupport.escape(value == null ? "" : value) + "\")";
-            case "int", "java.lang.Integer" -> Integer.toString(parseDefaultInt(value));
-            case "long", "java.lang.Long" -> Long.toString(parseDefaultLong(value)) + "L";
-            case "float", "java.lang.Float" -> Float.toString(parseDefaultFloat(value)) + "F";
-            case "double", "java.lang.Double" -> Double.toString(parseDefaultDouble(value));
-            case "boolean", "java.lang.Boolean" -> Boolean.toString(Boolean.parseBoolean(value));
+            case "int", JAVA_INT_OBJ -> Integer.toString(parseDefaultInt(value));
+            case "long", JAVA_LONG_OBJ -> Long.toString(parseDefaultLong(value)) + "L";
+            case TYPE_FLOAT, JAVA_FLOAT_OBJ -> Float.toString(parseDefaultFloat(value)) + "F";
+            case TYPE_DOUBLE, JAVA_DOUBLE_OBJ -> Double.toString(parseDefaultDouble(value));
+            case TYPE_BOOLEAN, JAVA_BOOLEAN_OBJ -> Boolean.toString(Boolean.parseBoolean(value));
             default ->
                 value == null || value.isBlank()
                         ? "null"
