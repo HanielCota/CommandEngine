@@ -1,5 +1,5 @@
 name: CommandEngineExample
-version: 0.1.0
+version: "${version}"
 main: com.hanielfialho.example.paper.ExamplePaperPlugin
 api-version: "1.21"
 author: hanielfialho

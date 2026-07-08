@@ -1,4 +1,4 @@
 /**
- * Suggestion providers especificos do Paper.
+ * Paper-specific suggestion providers.
  */
 package com.hanielfialho.platform.paper.suggestion;

@@ -9,9 +9,9 @@ dependencies {
   implementation(libs.brigadier)
   annotationProcessor(project(":commandengine-processor"))
   testAnnotationProcessor(project(":commandengine-processor"))
-  api(platform(libs.junit.bom))
-  api(libs.junit.jupiter)
-  api(libs.assertj)
+  testImplementation(platform(libs.junit.bom))
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
   compileOnly(libs.jetbrainsAnnotations)
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

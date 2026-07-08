@@ -1,3 +1,24 @@
+/*
+ * Copyright (c) 2026 Haniel Fialho
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 package com.hanielfialho.platform.paper.binding;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,6 +96,24 @@ final class PaperBrigadierBindingTest {
         assertThat(commandMap.getKnownCommands().get("root")).isNotSameAs(existing);
         assertThat(commandMap.getKnownCommands().get("r")).isNotSameAs(existing);
         assertThat(commandMap.getKnownCommands()).doesNotContainValue(existing);
+    }
+
+    @Test
+    void unregisterNormalizesNameWhenRemovingDispatcherNode() {
+        var knownCommands = new LinkedHashMap<String, org.bukkit.command.Command>();
+        var commandMap = new SimpleCommandMap(server(), knownCommands);
+        var binding = new PaperBrigadierBinding(plugin(), commandMap);
+        var metadata = new CommandMetadata("root", List.of(), "", "", List.of());
+
+        binding.register(LiteralArgumentBuilder.<CommandSource>literal("root"), metadata);
+
+        assertThat(binding.getDispatcher().getRoot().getChild("root")).isNotNull();
+        assertThat(commandMap.getKnownCommands()).containsKey("root");
+
+        binding.unregister("ROOT");
+
+        assertThat(commandMap.getKnownCommands()).doesNotContainKey("root");
+        assertThat(binding.getDispatcher().getRoot().getChild("root")).isNull();
     }
 
     @Test

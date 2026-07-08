@@ -1,5 +1,27 @@
+/*
+ * Copyright (c) 2026 Haniel Fialho
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 package com.hanielfialho.runtime.internal.executor;
 
+import com.hanielfialho.api.command.CommandPath;
 import com.hanielfialho.api.executor.CommandExecutor;
 import com.hanielfialho.api.message.CommandMessages;
 import com.hanielfialho.api.result.CommandResult;
@@ -22,8 +44,10 @@ public final class SyncExecutor implements CommandExecutor {
     }
 
     @Override
-    public @NotNull CommandResult executeSync(@NotNull CommandSource source, @NotNull Runnable command) {
+    public @NotNull CommandResult executeSync(
+            @NotNull CommandSource source, @NotNull CommandPath path, @NotNull Runnable command) {
         Preconditions.checkNotNull(source, "source");
+        Preconditions.checkNotNull(path, "path");
         Preconditions.checkNotNull(command, "command");
         try {
             command.run();
@@ -35,8 +59,8 @@ public final class SyncExecutor implements CommandExecutor {
 
     @Override
     public @NotNull CompletableFuture<CommandResult> executeAsync(
-            @NotNull CommandSource source, @NotNull Runnable command) {
+            @NotNull CommandSource source, @NotNull CommandPath path, @NotNull Runnable command) {
         // Fallback: run sync if no async executor available
-        return CompletableFuture.completedFuture(executeSync(source, command));
+        return CompletableFuture.completedFuture(executeSync(source, path, command));
     }
 }

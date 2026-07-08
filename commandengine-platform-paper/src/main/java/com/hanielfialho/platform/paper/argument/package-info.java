@@ -1,4 +1,4 @@
 /**
- * Argument resolvers especificos do Paper.
+ * Paper-specific argument resolvers.
  */
 package com.hanielfialho.platform.paper.argument;

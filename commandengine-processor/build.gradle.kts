@@ -4,7 +4,6 @@ plugins {
 
 dependencies {
   implementation(project(":commandengine-api"))
-  implementation(libs.brigadier)
   compileOnly(libs.jetbrainsAnnotations)
   testImplementation(libs.compile.testing)
   testImplementation(libs.guava)

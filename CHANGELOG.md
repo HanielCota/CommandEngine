@@ -31,11 +31,11 @@ The project follows semantic versioning once the public API becomes stable. Alph
 - `VirtualThreadExecutor` and `VirtualThreadSuggestionExecutor` now await termination on close.
 - `TelemetryCommandExecutor` records execution time before handling async failures.
 - `PaperBridgeCommand` now sends `messages.invalidSyntax()` for syntax errors and uses the configured suggestion timeout.
-- `LocationArgumentResolver` now uses `StringArgumentType.string()` instead of `greedyString()`.
+- `LocationArgumentResolver` now uses `StringArgumentType.greedyString()` instead of `string()`.
 - `MaterialArgumentResolver` now uses non-legacy material matching.
 - `PaperCommandEngineConfigLoader` now validates config types and rejects non-positive values with clear messages.
 - JitPack group logic fixed to use the provided `GROUP` without artifact concatenation.
-- `commandengine-test` now exposes JUnit/AssertJ as `api` dependencies.
+- `commandengine-test` now exposes JUnit/AssertJ as `testImplementation` dependencies.
 
 ### Fixed
 

@@ -16,9 +16,21 @@ dependencies {
     exclude(group = "com.google.auto.service")
   }
   annotationProcessor(project(":commandengine-processor"))
+
+  testImplementation(platform(libs.junit.bom))
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj)
+  testImplementation(project(":commandengine-test"))
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks {
+  named<Copy>("processResources") {
+    filesMatching("plugin.yml") {
+      expand("version" to project.version)
+    }
+  }
+
   named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     archiveClassifier.set("")
   }

@@ -1,3 +1,24 @@
+/*
+ * Copyright (c) 2026 Haniel Fialho
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 package com.hanielfialho.runtime;
 
 import com.hanielfialho.api.argument.ArgumentResolverRegistry;
@@ -81,45 +102,75 @@ public final class CommandEngine implements AutoCloseable {
         this.adapterFactoriesByClassLoader = new ConcurrentHashMap<>();
     }
 
+    /**
+     * Returns a builder to configure a {@link CommandEngine} instance.
+     */
     public static @NotNull Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Returns the default in-memory command registry.
+     */
     public static @NotNull CommandRegistry defaultRegistry() {
         return new DefaultCommandRegistry();
     }
 
+    /**
+     * Returns an executor that runs commands on virtual threads with default settings.
+     */
     public static @NotNull CommandExecutor virtualThreadExecutor() {
         return new VirtualThreadExecutor();
     }
 
+    /**
+     * Returns an executor that runs commands on virtual threads using the provided messages.
+     */
     public static @NotNull CommandExecutor virtualThreadExecutor(@NotNull CommandMessages messages) {
         return new VirtualThreadExecutor(messages);
     }
 
+    /**
+     * Returns an executor that runs commands on virtual threads with the provided timeout.
+     */
     public static @NotNull CommandExecutor virtualThreadExecutor(
             @NotNull CommandMessages messages, @NotNull Duration timeout) {
         return new VirtualThreadExecutor(messages, timeout);
     }
 
+    /**
+     * Returns the default argument resolver registry with built-in primitive and String resolvers.
+     */
     public static @NotNull ArgumentResolverRegistry defaultArgumentResolverRegistry() {
         return new DefaultArgumentResolverRegistry();
     }
 
+    /**
+     * Builds a Caffeine-backed rate limiter from the provided configuration.
+     */
     public static @NotNull CommandRateLimiter configuredRateLimiter(@NotNull CommandEngineConfig config) {
         Preconditions.checkNotNull(config, "config");
         return new CaffeineCommandRateLimiter(
                 config.rateLimitWindow(), config.rateLimitMaxExecutions(), config.rateLimitMaximumSize());
     }
 
+    /**
+     * Returns a suggestion executor that runs suggestion providers on virtual threads.
+     */
     public static @NotNull SuggestionExecutor virtualThreadSuggestionExecutor() {
         return new VirtualThreadSuggestionExecutor();
     }
 
+    /**
+     * Returns a suggestion executor that runs suggestion providers on virtual threads with the provided timeout.
+     */
     public static @NotNull SuggestionExecutor virtualThreadSuggestionExecutor(@NotNull Duration timeout) {
         return new VirtualThreadSuggestionExecutor(timeout);
     }
 
+    /**
+     * Creates a {@link CommandEngine} from a platform configuration.
+     */
     public static @NotNull CommandEngine create(@NotNull Platform platform) {
         Preconditions.checkNotNull(platform, "platform");
         CommandTelemetry telemetry = platform.telemetry();
@@ -138,6 +189,10 @@ public final class CommandEngine implements AutoCloseable {
                 false);
     }
 
+    /**
+     * Registers a command instance using its generated adapter factory.
+     * Re-registering the same instance replaces the previous adapter atomically.
+     */
     @SuppressWarnings("java:S2201")
     public @NotNull CommandEngine register(@NotNull Object commandInstance) {
         Preconditions.checkNotNull(commandInstance, "commandInstance");
@@ -166,6 +221,9 @@ public final class CommandEngine implements AutoCloseable {
         return this;
     }
 
+    /**
+     * Registers a pre-built command adapter.
+     */
     public @NotNull CommandEngine register(@NotNull CommandAdapter adapter) {
         Preconditions.checkNotNull(adapter, "adapter");
         registry.register(owner, adapter);
@@ -183,6 +241,9 @@ public final class CommandEngine implements AutoCloseable {
         return this;
     }
 
+    /**
+     * Unregisters a previously registered command instance.
+     */
     public @NotNull CommandEngine unregister(@NotNull Object commandInstance) {
         Preconditions.checkNotNull(commandInstance, "commandInstance");
         synchronized (adaptersByInstance) {
@@ -195,6 +256,9 @@ public final class CommandEngine implements AutoCloseable {
         }
     }
 
+    /**
+     * Unregisters a command adapter from the registry and the underlying dispatcher.
+     */
     @SuppressWarnings("java:S2201")
     public @NotNull CommandEngine unregister(@NotNull CommandAdapter adapter) {
         Preconditions.checkNotNull(adapter, "adapter");
@@ -218,6 +282,9 @@ public final class CommandEngine implements AutoCloseable {
         return this;
     }
 
+    /**
+     * Unregisters all adapters owned by this engine's owner.
+     */
     public void unregisterAll() {
         List<CommandAdapter> adapters;
         synchronized (adaptersByInstance) {
@@ -247,10 +314,16 @@ public final class CommandEngine implements AutoCloseable {
         }
     }
 
+    /**
+     * Returns the command registry used by this engine.
+     */
     public @NotNull CommandRegistry registry() {
         return registry;
     }
 
+    /**
+     * Returns the argument resolver registry used by this engine.
+     */
     public @NotNull ArgumentResolverRegistry argumentResolvers() {
         return argumentResolvers;
     }
@@ -324,6 +397,9 @@ public final class CommandEngine implements AutoCloseable {
         return failure;
     }
 
+    /**
+     * Unregisters all commands and closes executors created by this engine.
+     */
     @Override
     public void close() {
         RuntimeException failure = null;

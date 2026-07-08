@@ -71,6 +71,7 @@ subprojects {
       removeUnusedImports()
       trimTrailingWhitespace()
       endWithNewline()
+      licenseHeaderFile(rootProject.file("config/spotless/mit-license.java"))
     }
   }
 
