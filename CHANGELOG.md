@@ -4,6 +4,44 @@ All notable changes to CommandEngine are documented here.
 
 The project follows semantic versioning once the public API becomes stable. Alpha releases may still contain breaking API changes.
 
+## v0.1.0-alpha.7 - 2026-07-08
+
+### Added
+
+- Added `@NotNull`/`@Nullable` annotations across all public API surfaces (api, runtime, processor, platform and test).
+- Added `EmptyArgumentResolverRegistry` as a no-op registry implementation to the API.
+- Added runtime argument resolvers: `CollectionArgumentResolver`, `DurationArgumentResolver`, `EnumArgumentResolver` and `StringQuotedArgumentResolver`.
+- Added `CommandEngine` builder, reload and lifecycle management helpers.
+- Added `DefaultCommandRegistry` snapshot and duplicate detection.
+- Added `CacheBackend`/`CaffeineCacheBackend` SPI separation for the cache layer.
+- Added `Preconditions` validation utility in the runtime.
+- Added `LocalBrigadierAdapter` to the test harness and a `module-info.java` to `commandengine-example-paper`.
+- Added a Spotless MIT license header to all Java source files.
+- Added 100+ new tests across api, runtime, processor, platform and integration modules.
+- Added `@Subcommand("")` as a root handler on any method name, not only the `onCommand` convention.
+- Added a rate-limit bypass permission to `CaffeineCommandRateLimiter`.
+
+### Changed
+
+- Removed `GreedyStringArgumentResolver`, superseded by `StringQuotedArgumentResolver`.
+- Hardened `SyncExecutor`, `VirtualThreadExecutor` and `TelemetryCommandExecutor`.
+- Refactored `PaperBrigadierBinding` to use a `Predicate`-based `removeKnownCommandEntries` helper.
+- Bumped Spotless to 8.8.0 and refreshed the Gradle wrapper.
+- Moved test harness classes (`MockCommandSource`, `TestEngine`) into dedicated packages.
+
+### Fixed
+
+- Fixed `TelemetryCommandExecutor` double-recording execution telemetry for async handlers.
+- Fixed reliability issues flagged by SonarCloud: ignored return values (`cancel`, `shutdownNow`, unregister), null safety (S2201/S2259) and broad throwable catches in suggestions.
+- Cleaned alias root nodes during `unregisterAll` and removed a duplicate permission check.
+- Improved the error message shown when the annotation processor is missing.
+- Logged Brigadier exceptions, runtime failures and sender type mismatches instead of swallowing them.
+
+### Notes
+
+- This is an alpha release. Public API compatibility is not guaranteed.
+- Local validation passed with `.\gradlew.bat spotlessApply spotlessCheck build --stacktrace`.
+
 ## v0.1.0-alpha.6 - 2026-06-29
 
 ### Added
