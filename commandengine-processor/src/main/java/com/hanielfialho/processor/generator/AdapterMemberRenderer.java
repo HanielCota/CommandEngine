@@ -26,6 +26,9 @@ import com.hanielfialho.processor.model.SubcommandModel;
 
 final class AdapterMemberRenderer {
 
+    private static final String PUBLIC = "    public ";
+    private static final String CLOSE_BRACE = "    }\n\n";
+
     private final CommandModel model;
 
     AdapterMemberRenderer(CommandModel model) {
@@ -92,29 +95,29 @@ final class AdapterMemberRenderer {
     }
 
     private void renderConstructors(StringBuilder code, String adapterName, String simpleClassName) {
-        code.append("    public ")
+        code.append(PUBLIC)
                 .append(adapterName)
                 .append("(")
                 .append(simpleClassName)
                 .append(" instance) {\n");
         code.append("        this(instance, DIRECT_EXECUTOR, null);\n");
-        code.append("    }\n\n");
-        code.append("    public ")
+        code.append(CLOSE_BRACE);
+        code.append(PUBLIC)
                 .append(adapterName)
                 .append("(")
                 .append(simpleClassName)
                 .append(" instance, CommandExecutor executor) {\n");
         code.append("        this(instance, executor, null);\n");
-        code.append("    }\n\n");
-        code.append("    public ")
+        code.append(CLOSE_BRACE);
+        code.append(PUBLIC)
                 .append(adapterName)
                 .append("(")
                 .append(simpleClassName)
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers) {\n");
         code.append(
                 "        this(instance, executor, argumentResolvers, CommandScheduler.DIRECT, DEFAULT_MESSAGES, CommandTelemetry.NOOP, CommandRateLimiter.NONE, SuggestionExecutor.DIRECT);\n");
-        code.append("    }\n\n");
-        code.append("    public ")
+        code.append(CLOSE_BRACE);
+        code.append(PUBLIC)
                 .append(adapterName)
                 .append("(")
                 .append(simpleClassName)
@@ -123,9 +126,9 @@ final class AdapterMemberRenderer {
                         "CommandScheduler scheduler, CommandMessages messages, CommandTelemetry telemetry, CommandRateLimiter rateLimiter) {\n");
         code.append(
                 "        this(instance, executor, argumentResolvers, scheduler, messages, telemetry, rateLimiter, SuggestionExecutor.DIRECT);\n");
-        code.append("    }\n\n");
+        code.append(CLOSE_BRACE);
 
-        code.append("    public ")
+        code.append(PUBLIC)
                 .append(adapterName)
                 .append("(")
                 .append(simpleClassName)
@@ -141,6 +144,6 @@ final class AdapterMemberRenderer {
         code.append("        this.rateLimiter = Objects.requireNonNull(rateLimiter, \"rateLimiter\");\n");
         code.append(
                 "        this.suggestionExecutor = Objects.requireNonNull(suggestionExecutor, \"suggestionExecutor\");\n");
-        code.append("    }\n\n");
+        code.append(CLOSE_BRACE);
     }
 }

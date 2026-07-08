@@ -25,6 +25,12 @@ import com.hanielfialho.processor.model.CommandModel;
 
 final class AdapterHelperRenderer {
 
+    private static final String BRACE_20 = "                    }\n";
+    private static final String BRACE_16 = "                }\n";
+    private static final String BRACE_12 = "            }\n";
+    private static final String BRACE_8 = "        }\n";
+    private static final String BRACE_4 = "    }\n\n";
+
     private final CommandModel model;
 
     AdapterHelperRenderer(CommandModel model) {
@@ -133,7 +139,7 @@ final class AdapterHelperRenderer {
         code.append("                String remaining = builder.getRemainingLowerCase();\n");
         code.append("                for (String suggestion : suggestions) {\n");
         code.append(
-                "                    if (suggestion != null && suggestion.toLowerCase(java.util.Locale.ROOT).startsWith(remaining)) {\n");
+                "                    if (suggestion != null && suggestion.regionMatches(true, 0, remaining, 0, remaining.length())) {\n");
         code.append("                        builder.suggest(suggestion);\n");
         code.append("                        suggestionCount++;\n");
         code.append("                    }\n");

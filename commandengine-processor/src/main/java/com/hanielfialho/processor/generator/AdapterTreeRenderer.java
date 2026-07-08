@@ -31,6 +31,12 @@ import java.util.Set;
 
 final class AdapterTreeRenderer {
 
+    private static final String CLOSE_BRACE = "    }\n\n";
+    private static final String LITERAL_BUILDER_DECLARATION = "        LiteralArgumentBuilder<CommandSource> ";
+    private static final String INDENT_8 = "        ";
+    private static final String EXECUTES_METHOD = ".executes(this::execute";
+    private static final String THEN_METHOD = ".then(";
+
     private final CommandModel model;
     private int generatedNodeCounter;
 
@@ -57,7 +63,7 @@ final class AdapterTreeRenderer {
                 .append("\").build();\n");
         code.append("        brigadier.register(root, metadata());\n");
         renderAliasRegistrations(code);
-        code.append("    }\n\n");
+        code.append(CLOSE_BRACE);
 
         code.append("    @Override\n");
         code.append("    public void unregister(BrigadierAdapter brigadier) {\n");
@@ -66,7 +72,7 @@ final class AdapterTreeRenderer {
         code.append("            brigadier.unregister(name);\n");
         code.append("        }\n");
         code.append("        registeredNames.clear();\n");
-        code.append("    }\n\n");
+        code.append(CLOSE_BRACE);
     }
 
     private void renderAliasRegistrations(StringBuilder code) {
@@ -105,7 +111,7 @@ final class AdapterTreeRenderer {
         }
 
         code.append("        return root;\n");
-        code.append("    }\n\n");
+        code.append(CLOSE_BRACE);
     }
 
     private void renderSubcommandTree(StringBuilder code, SubcommandModel subcommand, int subIndex) {
@@ -116,7 +122,7 @@ final class AdapterTreeRenderer {
             pathParts = subcommand.getPath().trim().split("\\s+");
             for (int pathIndex = 0; pathIndex < pathParts.length; pathIndex++) {
                 String variable = "literal" + subIndex + "_" + pathIndex;
-                code.append("        LiteralArgumentBuilder<CommandSource> ")
+                code.append(LITERAL_BUILDER_DECLARATION)
                         .append(variable)
                         .append(" = LiteralArgumentBuilder.<CommandSource>literal(\"")
                         .append(AdapterRenderingSupport.escape(pathParts[pathIndex]))
@@ -140,9 +146,9 @@ final class AdapterTreeRenderer {
                 .toList();
 
         if (commandArguments.isEmpty()) {
-            code.append("        ")
+            code.append(INDENT_8)
                     .append(attachTo)
-                    .append(".executes(this::execute")
+                    .append(EXECUTES_METHOD)
                     .append(subIndex)
                     .append(");\n");
             renderFlagNodes(code, attachTo, subIndex, flags, Set.of());
@@ -153,7 +159,8 @@ final class AdapterTreeRenderer {
 
         if (!rootSubcommand) {
             for (int pathIndex = pathParts.length - 1; pathIndex > 0; pathIndex--) {
-                code.append("        literal")
+                code.append(INDENT_8)
+                        .append("literal")
                         .append(subIndex)
                         .append("_")
                         .append(pathIndex - 1)
@@ -180,25 +187,25 @@ final class AdapterTreeRenderer {
             ParameterModel parameter = commandArguments.get(argIndex);
             String variable = "argument" + subIndex + "_" + argIndex;
             argumentVariables.add(variable);
-            code.append("        ")
+            code.append(INDENT_8)
                     .append(new AdapterExecutionRenderer(model)
                             .argumentBuilderDeclaration(parameter, variable, subIndex))
                     .append(";\n");
 
             if (parameter.isOptional()) {
                 String executableNode = previousArgument == null ? attachTo : previousArgument;
-                code.append("        ")
+                code.append(INDENT_8)
                         .append(executableNode)
-                        .append(".executes(this::execute")
+                        .append(EXECUTES_METHOD)
                         .append(subIndex)
                         .append(");\n");
                 renderFlagNodes(code, executableNode, subIndex, flags, Set.of());
             }
 
             if (argIndex == commandArguments.size() - 1) {
-                code.append("        ")
+                code.append(INDENT_8)
                         .append(variable)
-                        .append(".executes(this::execute")
+                        .append(EXECUTES_METHOD)
                         .append(subIndex)
                         .append(");\n");
                 renderFlagNodes(code, variable, subIndex, flags, Set.of());
@@ -206,15 +213,15 @@ final class AdapterTreeRenderer {
             previousArgument = variable;
         }
         for (int argIndex = argumentVariables.size() - 1; argIndex > 0; argIndex--) {
-            code.append("        ")
+            code.append(INDENT_8)
                     .append(argumentVariables.get(argIndex - 1))
-                    .append(".then(")
+                    .append(THEN_METHOD)
                     .append(argumentVariables.get(argIndex))
                     .append(");\n");
         }
-        code.append("        ")
+        code.append(INDENT_8)
                 .append(attachTo)
-                .append(".then(")
+                .append(THEN_METHOD)
                 .append(argumentVariables.getFirst())
                 .append(");\n");
     }
@@ -227,7 +234,7 @@ final class AdapterTreeRenderer {
             }
             ParameterModel flag = flags.get(flagIndex);
             String variable = "flag" + subIndex + "_" + generatedNodeCounter++;
-            code.append("        LiteralArgumentBuilder<CommandSource> ")
+            code.append(LITERAL_BUILDER_DECLARATION)
                     .append(variable)
                     .append(" = LiteralArgumentBuilder.<CommandSource>literal(\"--")
                     .append(AdapterRenderingSupport.escape(flag.getName()))
@@ -237,15 +244,15 @@ final class AdapterTreeRenderer {
             Set<Integer> nextUsedFlags = new HashSet<>(usedFlags);
             nextUsedFlags.add(flagIndex);
             renderFlagNodes(code, variable, subIndex, flags, nextUsedFlags);
-            code.append("        ")
+            code.append(INDENT_8)
                     .append(targetNode)
-                    .append(".then(")
+                    .append(THEN_METHOD)
                     .append(variable)
                     .append(");\n");
 
             if (flag.getShorthand() != '\0') {
                 String shorthandVariable = "flag" + subIndex + "_" + generatedNodeCounter++;
-                code.append("        LiteralArgumentBuilder<CommandSource> ")
+                code.append(LITERAL_BUILDER_DECLARATION)
                         .append(shorthandVariable)
                         .append(" = LiteralArgumentBuilder.<CommandSource>literal(\"-")
                         .append(AdapterRenderingSupport.escape(Character.toString(flag.getShorthand())))
@@ -253,9 +260,9 @@ final class AdapterTreeRenderer {
                         .append(subIndex)
                         .append(");\n");
                 renderFlagNodes(code, shorthandVariable, subIndex, flags, nextUsedFlags);
-                code.append("        ")
+                code.append(INDENT_8)
                         .append(targetNode)
-                        .append(".then(")
+                        .append(THEN_METHOD)
                         .append(shorthandVariable)
                         .append(");\n");
             }

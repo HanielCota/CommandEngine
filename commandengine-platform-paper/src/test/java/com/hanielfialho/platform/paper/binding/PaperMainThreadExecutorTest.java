@@ -68,7 +68,26 @@ final class PaperMainThreadExecutorTest {
 
     @Test
     void taskAlreadyOnMainThreadRunsDirectly() throws Exception {
-        var server = serverWithScheduler(true);
+        var schedulerAccessed = new AtomicBoolean(false);
+        var server = (Server) Proxy.newProxyInstance(
+                Server.class.getClassLoader(), new Class<?>[] {Server.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("isPrimaryThread")) return true;
+                    if (method.getName().equals("getScheduler")) {
+                        schedulerAccessed.set(true);
+                        return Proxy.newProxyInstance(
+                                org.bukkit.scheduler.BukkitScheduler.class.getClassLoader(),
+                                new Class<?>[] {org.bukkit.scheduler.BukkitScheduler.class},
+                                (schedProxy, schedMethod, schedArgs) -> {
+                                    if (schedMethod.getName().equals("runTask")) {
+                                        Runnable task = (Runnable) schedArgs[1];
+                                        task.run();
+                                        return 1;
+                                    }
+                                    return null;
+                                });
+                    }
+                    return defaultValue(method.getReturnType());
+                });
         setBukkitServer(server);
         var plugin = plugin(true, server);
         var scheduler = new PaperCommandScheduler(plugin);
@@ -77,6 +96,7 @@ final class PaperMainThreadExecutorTest {
         scheduler.execute(() -> executed.set(true));
 
         assertThat(executed).isTrue();
+        assertThat(schedulerAccessed).isFalse();
     }
 
     @Test

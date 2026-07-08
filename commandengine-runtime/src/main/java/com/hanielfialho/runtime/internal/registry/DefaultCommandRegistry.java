@@ -35,12 +35,14 @@ import org.jetbrains.annotations.NotNull;
 @SuppressWarnings("java:S2201")
 public final class DefaultCommandRegistry implements CommandRegistry {
 
+    private static final String OWNER_LITERAL = "owner";
+
     private final Map<String, CommandAdapter> adapters = new ConcurrentHashMap<>();
     private final Map<Object, Set<String>> ownerIndex = new ConcurrentHashMap<>();
 
     @Override
     public void register(@NotNull Object owner, @NotNull CommandAdapter adapter) {
-        Preconditions.checkNotNull(owner, "owner");
+        Preconditions.checkNotNull(owner, OWNER_LITERAL);
         Preconditions.checkNotNull(adapter, "adapter");
         var name = adapter.metadata().name();
         var previous = adapters.putIfAbsent(name, adapter);
@@ -56,15 +58,14 @@ public final class DefaultCommandRegistry implements CommandRegistry {
     public void unregister(@NotNull CommandAdapter adapter) {
         Preconditions.checkNotNull(adapter, "adapter");
         var name = adapter.metadata().name();
-        var previous = adapters.computeIfPresent(name, (ignored, current) -> current == adapter ? null : current);
-        if (previous == adapter) {
+        if (adapters.remove(name, adapter)) {
             ownerIndex.values().forEach(names -> names.remove(name));
         }
     }
 
     @Override
     public void unregisterAll(@NotNull Object owner) {
-        Preconditions.checkNotNull(owner, "owner");
+        Preconditions.checkNotNull(owner, OWNER_LITERAL);
         var names = ownerIndex.remove(owner);
         if (names == null) {
             return;
@@ -78,7 +79,7 @@ public final class DefaultCommandRegistry implements CommandRegistry {
     }
 
     public @NotNull Collection<CommandAdapter> getAdapters(@NotNull Object owner) {
-        Preconditions.checkNotNull(owner, "owner");
+        Preconditions.checkNotNull(owner, OWNER_LITERAL);
         var names = ownerIndex.get(owner);
         if (names == null || names.isEmpty()) {
             return Set.of();

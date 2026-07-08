@@ -101,7 +101,9 @@ final class CommandExecutionPipelineTest {
             }
 
             @Override
-            public void recordSuggestion(CommandPath p, long nanos, int suggestionCount) {}
+            public void recordSuggestion(CommandPath p, long nanos, int suggestionCount) {
+                // no-op: test telemetry
+            }
         };
         var telemetryExecutor = new TelemetryCommandExecutor(executor, telemetry);
 
@@ -180,7 +182,9 @@ final class CommandExecutionPipelineTest {
             }
 
             @Override
-            public void sendMessage(String message) {}
+            public void sendMessage(String message) {
+                // no-op: test stub
+            }
 
             @Override
             public String getName() {

@@ -29,6 +29,9 @@ import java.util.stream.Collectors;
 
 public final class AdapterMetadataRenderer {
 
+    private static final String QUOTE_NEWLINE = "\",\n";
+    private static final String INDENT_QUOTE = "            \"";
+
     private final CommandModel model;
 
     public AdapterMetadataRenderer(CommandModel model) {
@@ -39,12 +42,12 @@ public final class AdapterMetadataRenderer {
         code.append("    @Override\n");
         code.append("    public CommandMetadata metadata() {\n");
         code.append("        return new CommandMetadata(\n");
-        code.append("            \"").append(escape(model.getName())).append("\",\n");
+        code.append(INDENT_QUOTE).append(escape(model.getName())).append(QUOTE_NEWLINE);
         code.append("            ")
                 .append(listOfStrings(List.of(model.getAliases())))
                 .append(",\n");
-        code.append("            \"").append(escape(model.getDescription())).append("\",\n");
-        code.append("            \"").append(escape(model.getPermission())).append("\",\n");
+        code.append(INDENT_QUOTE).append(escape(model.getDescription())).append(QUOTE_NEWLINE);
+        code.append(INDENT_QUOTE).append(escape(model.getPermission())).append(QUOTE_NEWLINE);
         code.append("            List.of(\n");
         for (int i = 0; i < model.getSubcommands().size(); i++) {
             SubcommandModel subcommand = model.getSubcommands().get(i);

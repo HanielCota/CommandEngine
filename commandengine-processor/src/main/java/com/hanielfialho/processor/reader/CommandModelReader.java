@@ -127,36 +127,17 @@ public final class CommandModelReader {
         }
 
         var method = (ExecutableElement) element;
-        if (method.getModifiers().contains(Modifier.PRIVATE)) {
-            error("@Subcommand handler must not be private", element);
-            return Optional.empty();
-        }
-        if (method.getModifiers().contains(Modifier.STATIC)) {
-            error("@Subcommand handler must not be static", element);
-            return Optional.empty();
-        }
-        if (hasCheckedExceptions(method)) {
-            error("@Subcommand handler must not declare checked exceptions", element);
-            return Optional.empty();
-        }
         var exec = element.getAnnotation(Execute.class);
         var methodSuggestions = element.getAnnotation(Suggestions.class);
         var subcommandPath = isRootHandler ? "" : sub.value();
-        if (!isValidSubcommandPath(subcommandPath)) {
-            error("@Subcommand path contains invalid characters or segments", element);
+
+        if (!validateSubcommandProperties(method, sub, isRootHandler, exec, subcommandPath)) {
             return Optional.empty();
         }
+
         var returnType = method.getReturnType();
         var returnsVoid = returnType.getKind() == TypeKind.VOID;
-        if (!returnsVoid && !isValidIntReturnType(returnType)) {
-            error("@Subcommand handler must return void or int", element);
-            return Optional.empty();
-        }
         var subcommandPermission = isRootHandler || sub.permission().isBlank() ? commandPermission : sub.permission();
-        if (!returnsVoid && exec != null && exec.async()) {
-            error("@Execute(async = true) requires a void command handler", element);
-            return Optional.empty();
-        }
         var subcommand = new SubcommandModel(
                 element.getSimpleName().toString(),
                 subcommandPath,
@@ -173,19 +154,44 @@ public final class CommandModelReader {
                 return Optional.empty();
             }
         }
-        if (!validateGreedyPosition(subcommand, element)) {
-            return Optional.empty();
-        }
-        if (!validateGreedyFlags(subcommand, element)) {
-            return Optional.empty();
-        }
-        if (!validateOptionalArgumentPosition(subcommand, element)) {
-            return Optional.empty();
-        }
-        if (!validateFlagCount(subcommand, element)) {
+        if (!validateGreedyPosition(subcommand, element)
+                || !validateGreedyFlags(subcommand, element)
+                || !validateOptionalArgumentPosition(subcommand, element)
+                || !validateFlagCount(subcommand, element)) {
             return Optional.empty();
         }
         return Optional.of(subcommand);
+    }
+
+    private boolean validateSubcommandProperties(
+            ExecutableElement method, Subcommand sub, boolean isRootHandler, Execute exec, String subcommandPath) {
+        if (method.getModifiers().contains(Modifier.PRIVATE)) {
+            error("@Subcommand handler must not be private", method);
+            return false;
+        }
+        if (method.getModifiers().contains(Modifier.STATIC)) {
+            error("@Subcommand handler must not be static", method);
+            return false;
+        }
+        if (hasCheckedExceptions(method)) {
+            error("@Subcommand handler must not declare checked exceptions", method);
+            return false;
+        }
+        if (!isValidSubcommandPath(subcommandPath)) {
+            error("@Subcommand path contains invalid characters or segments", method);
+            return false;
+        }
+        var returnType = method.getReturnType();
+        var returnsVoid = returnType.getKind() == TypeKind.VOID;
+        if (!returnsVoid && !isValidIntReturnType(returnType)) {
+            error("@Subcommand handler must return void or int", method);
+            return false;
+        }
+        if (!returnsVoid && exec != null && exec.async()) {
+            error("@Execute(async = true) requires a void command handler", method);
+            return false;
+        }
+        return true;
     }
 
     private boolean readParameter(
@@ -201,46 +207,21 @@ public final class CommandModelReader {
         var optional = parameter.getAnnotation(com.hanielfialho.api.annotation.Optional.class);
         var greedy = parameter.getAnnotation(Greedy.class);
         var suggestions = parameter.getAnnotation(Suggestions.class);
-        var annotationCount = (sender == null ? 0 : 1) + (arg == null ? 0 : 1) + (flag == null ? 0 : 1);
 
-        if (annotationCount > 1) {
-            error("Command parameters must have at most one of @Sender, @Arg, or @Flag", parameter);
-            return false;
-        }
-        if ((optional != null || greedy != null) && annotationCount == 0) {
-            error("@Optional and @Greedy must be paired with @Arg, @Flag or @Sender", parameter);
-            return false;
-        }
-        if (arg != null && arg.value().isBlank()) {
-            error("@Arg value must not be blank", parameter);
-            return false;
-        }
-        if (flag != null && flag.value().isBlank()) {
-            error("@Flag value must not be blank", parameter);
-            return false;
-        }
-        if (flag != null && flag.shorthand() != '\0' && Character.isWhitespace(flag.shorthand())) {
-            error("@Flag shorthand must not be whitespace", parameter);
-            return false;
-        }
-        if (arg != null && !isValidCommandName(arg.value())) {
-            error("@Arg value contains invalid characters: " + arg.value(), parameter);
-            return false;
-        }
-        if (flag != null && !isValidCommandName(flag.value())) {
-            error("@Flag value contains invalid characters: " + flag.value(), parameter);
+        if (!validateAnnotationCombinations(parameter, sender, arg, flag, optional, greedy)) {
             return false;
         }
 
         var typeName = typeName(parameter);
         var stringSequence = SupportedCommandTypes.isStringSequenceType(typeName);
-        var inferredKind =
-                annotationCount == 0 ? inferParameterKind(parameter, subcommand, typeName, stringSequence) : null;
-        if (annotationCount == 0 && inferredKind.isEmpty()) {
+        var inferredKind = ((sender == null && arg == null && flag == null)
+                ? inferParameterKind(parameter, subcommand, typeName, stringSequence)
+                : null);
+        if ((sender == null && arg == null && flag == null) && inferredKind.isEmpty()) {
             return false;
         }
         ParameterModel.Kind kind;
-        if (annotationCount == 0) {
+        if (sender == null && arg == null && flag == null) {
             kind = inferredKind.get();
         } else if (sender != null) {
             kind = ParameterModel.Kind.SENDER;
@@ -250,65 +231,14 @@ public final class CommandModelReader {
             kind = ParameterModel.Kind.FLAG;
         }
 
-        if (kind == ParameterModel.Kind.SENDER && parameter.asType().getKind().isPrimitive()) {
-            error("@Sender parameters must not be primitive types", parameter);
-            return false;
-        }
-        if (kind == ParameterModel.Kind.SENDER && (optional != null || greedy != null)) {
-            error("@Optional and @Greedy are not allowed on @Sender parameters", parameter);
-            return false;
-        }
-        if (kind == ParameterModel.Kind.FLAG && optional != null) {
-            error("@Optional is not allowed on @Flag parameters", parameter);
-            return false;
-        }
-        if (kind == ParameterModel.Kind.FLAG && greedy != null) {
-            error("@Greedy is not allowed on @Flag parameters", parameter);
-            return false;
-        }
-        if (kind == ParameterModel.Kind.FLAG && flag.shorthand() != '\0' && !shorthandFlags.add(flag.shorthand())) {
-            error("Duplicate @Flag shorthand: " + flag.shorthand(), parameter);
-            return false;
-        }
-        if (optional != null
-                && kind == ParameterModel.Kind.ARGUMENT
-                && SupportedCommandTypes.isNumericType(typeName)
-                && optional.defaultValue().isBlank()) {
-            error("@Optional requires an explicit defaultValue for numeric type " + typeName, parameter);
-            return false;
-        }
-        if (optional != null
-                && kind == ParameterModel.Kind.ARGUMENT
-                && !SupportedCommandTypes.isBuiltInArgumentType(typeName)
-                && optional.defaultValue().isBlank()) {
-            error("@Optional defaultValue is required for custom argument types", parameter);
-            return false;
-        }
-        if (optional != null
-                && kind == ParameterModel.Kind.ARGUMENT
-                && (BOOLEAN_TYPE.equals(typeName) || BOOLEAN_OBJECT_TYPE.equals(typeName))
-                && !optional.defaultValue().isEmpty()
-                && !"true".equals(optional.defaultValue())
-                && !"false".equals(optional.defaultValue())) {
-            error("@Optional defaultValue for boolean must be 'true' or 'false'", parameter);
+        if (!validateKindConstraints(parameter, kind, typeName, optional, greedy, flag, shorthandFlags)
+                || !validateOptionalAndGreedy(parameter, kind, typeName, stringSequence, optional, greedy)) {
             return false;
         }
 
         var parameterName = parameterName(parameter, arg, flag, kind);
         if (kind != ParameterModel.Kind.SENDER && !parameterNames.add(parameterName)) {
             error("Duplicate parameter name: " + parameterName, parameter);
-            return false;
-        }
-
-        if (greedy != null && !"java.lang.String".equals(typeName) && !stringSequence) {
-            error("@Greedy is only supported for java.lang.String, String[], and List<String> arguments", parameter);
-            return false;
-        }
-
-        if (kind == ParameterModel.Kind.FLAG
-                && !BOOLEAN_TYPE.equals(typeName)
-                && !BOOLEAN_OBJECT_TYPE.equals(typeName)) {
-            error("@Flag parameters must be boolean or java.lang.Boolean", parameter);
             return false;
         }
 
@@ -320,19 +250,13 @@ public final class CommandModelReader {
             max = null;
         }
 
-        if (min != null && max != null && min > max) {
-            error("Argument minimum must be <= maximum", parameter);
+        if (!validateMinMax(parameter, min, max)) {
             return false;
         }
 
         int minLength = arg == null ? 0 : arg.minLength();
         int maxLength = arg == null ? Integer.MAX_VALUE : arg.maxLength();
-        if (minLength < 0 || maxLength < 0) {
-            error("@Arg minLength and maxLength must be >= 0", parameter);
-            return false;
-        }
-        if (minLength > maxLength) {
-            error("@Arg minLength must be <= maxLength", parameter);
+        if (!validateStringLengths(parameter, minLength, maxLength)) {
             return false;
         }
         if (arg != null && (minLength != 0 || maxLength != Integer.MAX_VALUE) && !"java.lang.String".equals(typeName)) {
@@ -374,6 +298,139 @@ public final class CommandModelReader {
                 flag == null ? '\0' : flag.shorthand(),
                 suggestionMethodName,
                 asyncSuggestions));
+        return true;
+    }
+
+    private boolean validateAnnotationCombinations(
+            VariableElement parameter,
+            Sender sender,
+            Arg arg,
+            Flag flag,
+            com.hanielfialho.api.annotation.Optional optional,
+            Greedy greedy) {
+        int annotationCount = (sender == null ? 0 : 1) + (arg == null ? 0 : 1) + (flag == null ? 0 : 1);
+        if (annotationCount > 1) {
+            error("Command parameters must have at most one of @Sender, @Arg, or @Flag", parameter);
+            return false;
+        }
+        if ((optional != null || greedy != null) && annotationCount == 0) {
+            error("@Optional and @Greedy must be paired with @Arg, @Flag or @Sender", parameter);
+            return false;
+        }
+        if (arg != null && arg.value().isBlank()) {
+            error("@Arg value must not be blank", parameter);
+            return false;
+        }
+        if (flag != null && flag.value().isBlank()) {
+            error("@Flag value must not be blank", parameter);
+            return false;
+        }
+        if (flag != null && flag.shorthand() != '\0' && Character.isWhitespace(flag.shorthand())) {
+            error("@Flag shorthand must not be whitespace", parameter);
+            return false;
+        }
+        if (arg != null && !isValidCommandName(arg.value())) {
+            error("@Arg value contains invalid characters: " + arg.value(), parameter);
+            return false;
+        }
+        if (flag != null && !isValidCommandName(flag.value())) {
+            error("@Flag value contains invalid characters: " + flag.value(), parameter);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validateKindConstraints(
+            VariableElement parameter,
+            ParameterModel.Kind kind,
+            String typeName,
+            com.hanielfialho.api.annotation.Optional optional,
+            Greedy greedy,
+            Flag flag,
+            Set<Character> shorthandFlags) {
+        if (kind == ParameterModel.Kind.SENDER) {
+            if (parameter.asType().getKind().isPrimitive()) {
+                error("@Sender parameters must not be primitive types", parameter);
+                return false;
+            }
+            if (optional != null || greedy != null) {
+                error("@Optional and @Greedy are not allowed on @Sender parameters", parameter);
+                return false;
+            }
+        }
+        if (kind == ParameterModel.Kind.FLAG) {
+            if (optional != null) {
+                error("@Optional is not allowed on @Flag parameters", parameter);
+                return false;
+            }
+            if (greedy != null) {
+                error("@Greedy is not allowed on @Flag parameters", parameter);
+                return false;
+            }
+            if (flag.shorthand() != '\0' && !shorthandFlags.add(flag.shorthand())) {
+                error("Duplicate @Flag shorthand: " + flag.shorthand(), parameter);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean validateOptionalAndGreedy(
+            VariableElement parameter,
+            ParameterModel.Kind kind,
+            String typeName,
+            boolean stringSequence,
+            com.hanielfialho.api.annotation.Optional optional,
+            Greedy greedy) {
+        if (optional != null && kind == ParameterModel.Kind.ARGUMENT) {
+            if (SupportedCommandTypes.isNumericType(typeName)
+                    && optional.defaultValue().isBlank()) {
+                error("@Optional requires an explicit defaultValue for numeric type " + typeName, parameter);
+                return false;
+            }
+            if (!SupportedCommandTypes.isBuiltInArgumentType(typeName)
+                    && optional.defaultValue().isBlank()) {
+                error("@Optional defaultValue is required for custom argument types", parameter);
+                return false;
+            }
+            if ((BOOLEAN_TYPE.equals(typeName) || BOOLEAN_OBJECT_TYPE.equals(typeName))
+                    && !optional.defaultValue().isEmpty()
+                    && !"true".equals(optional.defaultValue())
+                    && !"false".equals(optional.defaultValue())) {
+                error("@Optional defaultValue for boolean must be 'true' or 'false'", parameter);
+                return false;
+            }
+        }
+        if (greedy != null && !"java.lang.String".equals(typeName) && !stringSequence) {
+            error("@Greedy is only supported for java.lang.String, String[], and List<String> arguments", parameter);
+            return false;
+        }
+        if (kind == ParameterModel.Kind.FLAG
+                && !BOOLEAN_TYPE.equals(typeName)
+                && !BOOLEAN_OBJECT_TYPE.equals(typeName)) {
+            error("@Flag parameters must be boolean or java.lang.Boolean", parameter);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validateMinMax(VariableElement parameter, Double min, Double max) {
+        if (min != null && max != null && min > max) {
+            error("Argument minimum must be <= maximum", parameter);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validateStringLengths(VariableElement parameter, int minLength, int maxLength) {
+        if (minLength < 0 || maxLength < 0) {
+            error("@Arg minLength and maxLength must be >= 0", parameter);
+            return false;
+        }
+        if (minLength > maxLength) {
+            error("@Arg minLength must be <= maxLength", parameter);
+            return false;
+        }
         return true;
     }
 
@@ -421,7 +478,7 @@ public final class CommandModelReader {
                 case "long", "java.lang.Long" -> Long.parseLong(defaultValue);
                 case "float", "java.lang.Float" -> Float.parseFloat(defaultValue);
                 case "double", "java.lang.Double" -> Double.parseDouble(defaultValue);
-                case "boolean", "java.lang.Boolean" -> Boolean.parseBoolean(defaultValue);
+                case BOOLEAN_TYPE, BOOLEAN_OBJECT_TYPE -> Boolean.parseBoolean(defaultValue);
                 default -> {
                     // String and custom types accept any literal value.
                 }

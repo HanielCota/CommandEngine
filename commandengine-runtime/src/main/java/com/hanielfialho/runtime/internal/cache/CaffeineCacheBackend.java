@@ -23,6 +23,7 @@ package com.hanielfialho.runtime.internal.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Ticker;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.function.Function;
@@ -40,12 +41,17 @@ public final class CaffeineCacheBackend<K, V> implements CacheBackend<K, V> {
     }
 
     public CaffeineCacheBackend(@NotNull Duration ttl, long maximumSize) {
+        this(ttl, maximumSize, Ticker.systemTicker());
+    }
+
+    public CaffeineCacheBackend(@NotNull Duration ttl, long maximumSize, @NotNull Ticker ticker) {
         if (maximumSize < 1) {
             throw new IllegalArgumentException("maximumSize must be positive");
         }
         cache = Caffeine.newBuilder()
                 .expireAfterWrite(Objects.requireNonNull(ttl, "ttl"))
                 .maximumSize(maximumSize)
+                .ticker(Objects.requireNonNull(ticker, "ticker"))
                 .build();
     }
 

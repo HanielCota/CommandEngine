@@ -23,6 +23,7 @@ package com.hanielfialho.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.hanielfialho.runtime.internal.cache.CaffeineCacheBackend;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,15 +31,29 @@ import org.junit.jupiter.api.Test;
 
 final class CacheBackendExpirationTest {
 
+    private static final class FakeTicker implements Ticker {
+        private long nanos;
+
+        @Override
+        public long read() {
+            return nanos;
+        }
+
+        void advance(Duration duration) {
+            nanos += duration.toNanos();
+        }
+    }
+
     @Test
-    void expirationByTime() throws Exception {
+    void expirationByTime() {
         var loads = new AtomicInteger();
-        var cache = new CaffeineCacheBackend<String, String>(Duration.ofMillis(5), 100);
+        var ticker = new FakeTicker();
+        var cache = new CaffeineCacheBackend<String, String>(Duration.ofMillis(5), 100, ticker);
 
         cache.get("key", k -> "value-" + loads.incrementAndGet());
         assertThat(loads).hasValue(1);
 
-        Thread.sleep(50);
+        ticker.advance(Duration.ofMillis(50));
 
         String result = cache.get("key", k -> "value-" + loads.incrementAndGet());
         assertThat(result).isEqualTo("value-2");
@@ -74,19 +89,20 @@ final class CacheBackendExpirationTest {
     }
 
     @Test
-    void accessRenewsTtl() throws Exception {
+    void accessRenewsTtl() {
         var loads = new AtomicInteger();
-        var cache = new CaffeineCacheBackend<String, String>(Duration.ofMillis(50), 100);
+        var ticker = new FakeTicker();
+        var cache = new CaffeineCacheBackend<String, String>(Duration.ofMillis(50), 100, ticker);
 
         cache.get("key", k -> "value-" + loads.incrementAndGet());
         assertThat(loads).hasValue(1);
 
-        Thread.sleep(20);
+        ticker.advance(Duration.ofMillis(20));
 
         cache.get("key", k -> "value-" + loads.incrementAndGet());
         assertThat(loads).hasValue(1);
 
-        Thread.sleep(60);
+        ticker.advance(Duration.ofMillis(60));
 
         String result = cache.get("key", k -> "value-" + loads.incrementAndGet());
         assertThat(result).isEqualTo("value-2");

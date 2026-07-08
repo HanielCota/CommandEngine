@@ -29,6 +29,21 @@ import java.util.List;
 
 final class AdapterExecutionRenderer {
 
+    private static final String RETURN_ZERO = "            return 0;\n";
+    private static final String CLOSE_BRACE = "        }\n";
+    private static final String JAVA_STRING = "java.lang.String";
+    private static final String JAVA_STRING_ARRAY = "java.lang.String[]";
+    private static final String JAVA_STRING_LIST = "java.util.List<java.lang.String>";
+    private static final String JAVA_INT_OBJ = "java.lang.Integer";
+    private static final String JAVA_LONG_OBJ = "java.lang.Long";
+    private static final String TYPE_FLOAT = "float";
+    private static final String JAVA_FLOAT_OBJ = "java.lang.Float";
+    private static final String TYPE_DOUBLE = "double";
+    private static final String JAVA_DOUBLE_OBJ = "java.lang.Double";
+    private static final String TYPE_BOOLEAN = "boolean";
+    private static final String JAVA_BOOLEAN_OBJ = "java.lang.Boolean";
+    private static final String CLOSE_BRACE_METHOD = "    }\n\n";
+
     private final CommandModel model;
 
     AdapterExecutionRenderer(CommandModel model) {
@@ -80,8 +95,8 @@ final class AdapterExecutionRenderer {
                 .append(subIndex)
                 .append(")) {\n");
         code.append("            scheduler.execute(() -> source.sendMessage(messages.rateLimited()));\n");
-        code.append("            return 0;\n");
-        code.append("        }\n");
+        code.append(RETURN_ZERO);
+        code.append(CLOSE_BRACE);
 
         int argumentIndex = 0;
         int flagIndex = 0;
@@ -143,8 +158,8 @@ final class AdapterExecutionRenderer {
                     .append(subIndex)
                     .append(");\n");
             code.append("            scheduler.execute(() -> source.sendMessage(messages.invalidSender()));\n");
-            code.append("            return 0;\n");
-            code.append("        }\n");
+            code.append(RETURN_ZERO);
+            code.append(CLOSE_BRACE);
         }
         return variable;
     }
@@ -176,19 +191,19 @@ final class AdapterExecutionRenderer {
 
     private boolean isCustomArgumentType(ParameterModel parameter) {
         return switch (parameter.getTypeName()) {
-            case "java.lang.String",
-                    "java.lang.String[]",
-                    "java.util.List<java.lang.String>",
+            case JAVA_STRING,
+                    JAVA_STRING_ARRAY,
+                    JAVA_STRING_LIST,
                     "int",
-                    "java.lang.Integer",
+                    JAVA_INT_OBJ,
                     "long",
-                    "java.lang.Long",
-                    "float",
-                    "java.lang.Float",
-                    "double",
-                    "java.lang.Double",
-                    "boolean",
-                    "java.lang.Boolean" -> false;
+                    JAVA_LONG_OBJ,
+                    TYPE_FLOAT,
+                    JAVA_FLOAT_OBJ,
+                    TYPE_DOUBLE,
+                    JAVA_DOUBLE_OBJ,
+                    TYPE_BOOLEAN,
+                    JAVA_BOOLEAN_OBJ -> false;
             default -> true;
         };
     }
@@ -207,7 +222,7 @@ final class AdapterExecutionRenderer {
     }
 
     private void renderStringLengthValidation(StringBuilder code, ParameterModel parameter, String variable) {
-        if (!"java.lang.String".equals(parameter.getTypeName())
+        if (!JAVA_STRING.equals(parameter.getTypeName())
                 || (parameter.getMinLength() == 0 && parameter.getMaxLength() == Integer.MAX_VALUE)) {
             return;
         }
@@ -221,8 +236,8 @@ final class AdapterExecutionRenderer {
                 .append(parameter.getMaxLength())
                 .append(") {\n");
         code.append("            scheduler.execute(() -> source.sendMessage(messages.invalidSyntax()));\n");
-        code.append("            return 0;\n");
-        code.append("        }\n");
+        code.append(RETURN_ZERO);
+        code.append(CLOSE_BRACE);
     }
 
     private void renderAsyncInvocation(StringBuilder code, String invocation, int subIndex) {
@@ -234,7 +249,7 @@ final class AdapterExecutionRenderer {
         code.append(
                 "            .exceptionally(throwable -> handleAsyncFailure(source, throwable, scheduler, messages));\n");
         code.append("        return 1;\n");
-        code.append("    }\n\n");
+        code.append(CLOSE_BRACE_METHOD);
     }
 
     private void renderSyncVoidInvocation(StringBuilder code, String invocation, int subIndex) {
@@ -243,7 +258,7 @@ final class AdapterExecutionRenderer {
                 .append(", () -> ")
                 .append(invocation)
                 .append("), scheduler);\n");
-        code.append("    }\n\n");
+        code.append(CLOSE_BRACE_METHOD);
     }
 
     private void renderIntInvocation(StringBuilder code, String invocation, int subIndex) {
@@ -256,9 +271,9 @@ final class AdapterExecutionRenderer {
         code.append("        if (commandResult instanceof CommandResult.Success) {\n");
         code.append(
                 "            commandResult = result[0] < 0 ? CommandResult.failure(FailureReason.EXCEPTION, messages.internalError()) : CommandResult.success(result[0]);\n");
-        code.append("        }\n");
+        code.append(CLOSE_BRACE);
         code.append("        return toBrigadierResult(source, commandResult, scheduler);\n");
-        code.append("    }\n\n");
+        code.append(CLOSE_BRACE_METHOD);
     }
 
     private String suggestionsExpression(ParameterModel parameter, int subIndex) {

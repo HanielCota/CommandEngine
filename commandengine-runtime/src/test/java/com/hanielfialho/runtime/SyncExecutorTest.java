@@ -118,7 +118,9 @@ final class SyncExecutorTest {
             }
 
             @Override
-            public void sendMessage(String message) {}
+            public void sendMessage(String message) {
+                // no-op: test stub
+            }
 
             @Override
             public String getName() {

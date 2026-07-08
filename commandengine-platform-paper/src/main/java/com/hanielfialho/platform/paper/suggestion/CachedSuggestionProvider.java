@@ -23,6 +23,7 @@ package com.hanielfialho.platform.paper.suggestion;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.hanielfialho.api.suggestion.SuggestionProvider;
 import com.mojang.brigadier.context.CommandContext;
 import java.time.Duration;
@@ -48,6 +49,11 @@ public abstract class CachedSuggestionProvider implements SuggestionProvider {
     }
 
     protected CachedSuggestionProvider(@NotNull Duration ttl, long maximumSize, @NotNull BooleanSupplier isSafeToLoad) {
+        this(ttl, maximumSize, isSafeToLoad, Ticker.systemTicker());
+    }
+
+    protected CachedSuggestionProvider(
+            @NotNull Duration ttl, long maximumSize, @NotNull BooleanSupplier isSafeToLoad, @NotNull Ticker ticker) {
         if (maximumSize < 1) {
             throw new IllegalArgumentException("maximumSize must be positive");
         }
@@ -55,6 +61,7 @@ public abstract class CachedSuggestionProvider implements SuggestionProvider {
         cache = Caffeine.newBuilder()
                 .expireAfterWrite(Objects.requireNonNull(ttl, "ttl"))
                 .maximumSize(maximumSize)
+                .ticker(Objects.requireNonNull(ticker, "ticker"))
                 .build();
     }
 
@@ -75,7 +82,8 @@ public abstract class CachedSuggestionProvider implements SuggestionProvider {
             return values;
         }
         return values.stream()
-                .filter(value -> value.toLowerCase(Locale.ROOT).startsWith(normalizedRemaining))
+                .filter(value -> value != null
+                        && value.regionMatches(true, 0, normalizedRemaining, 0, normalizedRemaining.length()))
                 .toList();
     }
 

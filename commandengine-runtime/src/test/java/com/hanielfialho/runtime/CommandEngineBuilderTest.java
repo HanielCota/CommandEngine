@@ -148,14 +148,20 @@ final class CommandEngineBuilderTest {
                 .telemetry(new CommandTelemetry() {
                     @Override
                     public void recordExecution(
-                            com.hanielfialho.api.command.CommandPath path, long nanos, boolean async) {}
+                            com.hanielfialho.api.command.CommandPath path, long nanos, boolean async) {
+                        // no-op: test telemetry
+                    }
 
                     @Override
-                    public void recordFailure(com.hanielfialho.api.command.CommandPath path, String reason) {}
+                    public void recordFailure(com.hanielfialho.api.command.CommandPath path, String reason) {
+                        // no-op: test telemetry
+                    }
 
                     @Override
                     public void recordSuggestion(
-                            com.hanielfialho.api.command.CommandPath path, long nanos, int suggestionCount) {}
+                            com.hanielfialho.api.command.CommandPath path, long nanos, int suggestionCount) {
+                        // no-op: test telemetry
+                    }
                 })
                 .build();
         engine.close();

@@ -55,6 +55,25 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class CommandEngine implements AutoCloseable {
 
+    private static final String BRIGADIER_LITERAL = "brigadier";
+    private static final String EXECUTOR_LITERAL = "executor";
+    private static final String TELEMETRY_LITERAL = "telemetry";
+    private static final String COMMAND_INSTANCE_LITERAL = "commandInstance";
+
+    private record EngineComponents(
+            @NotNull CommandRegistry registry,
+            @NotNull BrigadierAdapter brigadier,
+            @NotNull CommandExecutor executor,
+            @NotNull ArgumentResolverRegistry argumentResolvers,
+            @NotNull CommandScheduler scheduler,
+            @NotNull CommandMessages messages,
+            @NotNull CommandTelemetry telemetry,
+            @NotNull CommandRateLimiter rateLimiter,
+            @NotNull SuggestionExecutor suggestionExecutor,
+            @NotNull Object owner,
+            boolean customExecutor,
+            boolean customSuggestionExecutor) {}
+
     private final CommandRegistry registry;
     private final BrigadierAdapter brigadier;
     private final CommandExecutor executor;
@@ -73,31 +92,19 @@ public final class CommandEngine implements AutoCloseable {
     @Nullable
     private volatile List<CommandAdapterFactory> bootstrapAdapterFactories;
 
-    private CommandEngine(
-            @NotNull CommandRegistry registry,
-            @NotNull BrigadierAdapter brigadier,
-            @NotNull CommandExecutor executor,
-            @NotNull ArgumentResolverRegistry argumentResolvers,
-            @NotNull CommandScheduler scheduler,
-            @NotNull CommandMessages messages,
-            @NotNull CommandTelemetry telemetry,
-            @NotNull CommandRateLimiter rateLimiter,
-            @NotNull SuggestionExecutor suggestionExecutor,
-            @NotNull Object owner,
-            boolean customExecutor,
-            boolean customSuggestionExecutor) {
-        this.registry = Preconditions.checkNotNull(registry, "registry");
-        this.brigadier = Preconditions.checkNotNull(brigadier, "brigadier");
-        this.executor = Preconditions.checkNotNull(executor, "executor");
-        this.argumentResolvers = Preconditions.checkNotNull(argumentResolvers, "argumentResolvers");
-        this.scheduler = Preconditions.checkNotNull(scheduler, "scheduler");
-        this.messages = Preconditions.checkNotNull(messages, "messages");
-        this.telemetry = Preconditions.checkNotNull(telemetry, "telemetry");
-        this.rateLimiter = Preconditions.checkNotNull(rateLimiter, "rateLimiter");
-        this.suggestionExecutor = Preconditions.checkNotNull(suggestionExecutor, "suggestionExecutor");
-        this.owner = Preconditions.checkNotNull(owner, "owner");
-        this.customExecutor = customExecutor;
-        this.customSuggestionExecutor = customSuggestionExecutor;
+    private CommandEngine(EngineComponents components) {
+        this.registry = Preconditions.checkNotNull(components.registry, "registry");
+        this.brigadier = Preconditions.checkNotNull(components.brigadier, BRIGADIER_LITERAL);
+        this.executor = Preconditions.checkNotNull(components.executor, EXECUTOR_LITERAL);
+        this.argumentResolvers = Preconditions.checkNotNull(components.argumentResolvers, "argumentResolvers");
+        this.scheduler = Preconditions.checkNotNull(components.scheduler, "scheduler");
+        this.messages = Preconditions.checkNotNull(components.messages, "messages");
+        this.telemetry = Preconditions.checkNotNull(components.telemetry, TELEMETRY_LITERAL);
+        this.rateLimiter = Preconditions.checkNotNull(components.rateLimiter, "rateLimiter");
+        this.suggestionExecutor = Preconditions.checkNotNull(components.suggestionExecutor, "suggestionExecutor");
+        this.owner = Preconditions.checkNotNull(components.owner, "owner");
+        this.customExecutor = components.customExecutor;
+        this.customSuggestionExecutor = components.customSuggestionExecutor;
         this.adaptersByInstance = Collections.synchronizedMap(new IdentityHashMap<>());
         this.adapterFactoriesByClassLoader = new ConcurrentHashMap<>();
     }
@@ -174,7 +181,7 @@ public final class CommandEngine implements AutoCloseable {
     public static @NotNull CommandEngine create(@NotNull Platform platform) {
         Preconditions.checkNotNull(platform, "platform");
         CommandTelemetry telemetry = platform.telemetry();
-        return new CommandEngine(
+        return new CommandEngine(new EngineComponents(
                 platform.registry(),
                 platform.brigadier(),
                 instrumentExecutor(platform.executor(), telemetry),
@@ -186,7 +193,7 @@ public final class CommandEngine implements AutoCloseable {
                 platform.suggestionExecutor(),
                 platform.owner(),
                 false,
-                false);
+                false));
     }
 
     /**
@@ -195,7 +202,7 @@ public final class CommandEngine implements AutoCloseable {
      */
     @SuppressWarnings("java:S2201")
     public @NotNull CommandEngine register(@NotNull Object commandInstance) {
-        Preconditions.checkNotNull(commandInstance, "commandInstance");
+        Preconditions.checkNotNull(commandInstance, COMMAND_INSTANCE_LITERAL);
         CommandAdapter adapter = instantiateAdapter(commandInstance);
         synchronized (adaptersByInstance) {
             var existing = adaptersByInstance.get(commandInstance);
@@ -245,7 +252,7 @@ public final class CommandEngine implements AutoCloseable {
      * Unregisters a previously registered command instance.
      */
     public @NotNull CommandEngine unregister(@NotNull Object commandInstance) {
-        Preconditions.checkNotNull(commandInstance, "commandInstance");
+        Preconditions.checkNotNull(commandInstance, COMMAND_INSTANCE_LITERAL);
         synchronized (adaptersByInstance) {
             CommandAdapter adapter = adaptersByInstance.remove(commandInstance);
             if (adapter == null) {
@@ -329,7 +336,7 @@ public final class CommandEngine implements AutoCloseable {
     }
 
     private CommandAdapter instantiateAdapter(Object commandInstance) {
-        Preconditions.checkNotNull(commandInstance, "commandInstance");
+        Preconditions.checkNotNull(commandInstance, COMMAND_INSTANCE_LITERAL);
         var classLoader = commandInstance.getClass().getClassLoader();
         var factories = adapterFactories(classLoader);
         for (var factory : factories) {
@@ -384,8 +391,8 @@ public final class CommandEngine implements AutoCloseable {
 
     private static @NotNull CommandExecutor instrumentExecutor(
             @NotNull CommandExecutor executor, @NotNull CommandTelemetry telemetry) {
-        Preconditions.checkNotNull(executor, "executor");
-        Preconditions.checkNotNull(telemetry, "telemetry");
+        Preconditions.checkNotNull(executor, EXECUTOR_LITERAL);
+        Preconditions.checkNotNull(telemetry, TELEMETRY_LITERAL);
         return telemetry == CommandTelemetry.NOOP ? executor : new TelemetryCommandExecutor(executor, telemetry);
     }
 
@@ -500,12 +507,12 @@ public final class CommandEngine implements AutoCloseable {
         }
 
         public @NotNull Builder brigadier(@NotNull BrigadierAdapter brigadier) {
-            this.brigadier = Preconditions.checkNotNull(brigadier, "brigadier");
+            this.brigadier = Preconditions.checkNotNull(brigadier, BRIGADIER_LITERAL);
             return this;
         }
 
         public @NotNull Builder executor(@NotNull CommandExecutor executor) {
-            this.executor = Preconditions.checkNotNull(executor, "executor");
+            this.executor = Preconditions.checkNotNull(executor, EXECUTOR_LITERAL);
             this.customExecutor = true;
             return this;
         }
@@ -530,7 +537,7 @@ public final class CommandEngine implements AutoCloseable {
         }
 
         public @NotNull Builder telemetry(@NotNull CommandTelemetry telemetry) {
-            this.telemetry = Preconditions.checkNotNull(telemetry, "telemetry");
+            this.telemetry = Preconditions.checkNotNull(telemetry, TELEMETRY_LITERAL);
             return this;
         }
 
@@ -569,12 +576,12 @@ public final class CommandEngine implements AutoCloseable {
         }
 
         public @NotNull CommandEngine build() {
-            Preconditions.checkNotNull(brigadier, "brigadier");
+            Preconditions.checkNotNull(brigadier, BRIGADIER_LITERAL);
             CommandExecutor selectedExecutor =
                     customExecutor ? executor : new VirtualThreadExecutor(messages, asyncTimeout);
             SuggestionExecutor selectedSuggestionExecutor =
                     customSuggestionExecutor ? suggestionExecutor : new VirtualThreadSuggestionExecutor(asyncTimeout);
-            return new CommandEngine(
+            return new CommandEngine(new EngineComponents(
                     registry,
                     brigadier,
                     instrumentExecutor(selectedExecutor, telemetry),
@@ -586,7 +593,7 @@ public final class CommandEngine implements AutoCloseable {
                     selectedSuggestionExecutor,
                     owner,
                     customExecutor,
-                    customSuggestionExecutor);
+                    customSuggestionExecutor));
         }
     }
 }

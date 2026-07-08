@@ -51,14 +51,14 @@ public final class SuggestionMethodResolver {
                 resolveMethod(enclosed, methods);
             }
             var superType = current.getSuperclass();
-            if (superType == null || superType.toString().equals("java.lang.Object")) {
-                break;
+            TypeElement next = null;
+            if (superType != null && !superType.toString().equals("java.lang.Object")) {
+                var superElement = (TypeElement) processingEnv.getTypeUtils().asElement(superType);
+                if (superElement != null && !superElement.equals(current)) {
+                    next = superElement;
+                }
             }
-            var superElement = (TypeElement) processingEnv.getTypeUtils().asElement(superType);
-            if (superElement == null || superElement.equals(current)) {
-                break;
-            }
-            current = superElement;
+            current = next;
         }
         return Map.copyOf(methods);
     }

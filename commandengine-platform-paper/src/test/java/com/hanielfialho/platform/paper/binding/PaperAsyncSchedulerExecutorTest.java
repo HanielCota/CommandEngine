@@ -76,8 +76,8 @@ final class PaperAsyncSchedulerExecutorTest {
 
         var future = executor.executeAsync(source, () -> {
             try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
+                new CountDownLatch(1).await();
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
             executed.set(true);

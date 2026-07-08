@@ -28,7 +28,6 @@ import org.bukkit.command.BlockCommandSender;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.command.RemoteConsoleCommandSender;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
@@ -95,12 +94,6 @@ final class PaperSenderAdapterTest {
 
     @Test
     void entitySender() {
-        var entity = (Entity) Proxy.newProxyInstance(
-                Entity.class.getClassLoader(), new Class<?>[] {Entity.class}, (proxy, method, args) -> {
-                    if (method.getName().equals("getName")) return "entity";
-                    if (method.getName().equals("hasPermission")) return false;
-                    return defaultReturn(method.getReturnType());
-                });
         var sender = (CommandSender) Proxy.newProxyInstance(
                 CommandSender.class.getClassLoader(), new Class<?>[] {CommandSender.class}, (proxy, method, args) -> {
                     if (method.getName().equals("getName")) return "entity";

@@ -155,6 +155,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
         }
         if (command == null) {
             removeRootNode(name);
+            registeredRootNodes.remove(name);
             return;
         }
 
@@ -170,6 +171,7 @@ public final class PaperBrigadierBinding implements BrigadierAdapter {
             registeredCommands.remove(commandName);
         }
         removeRootNode(normalized);
+        registeredRootNodes.remove(normalized);
         CommandMap currentCommandMap = commandMap;
         if (currentCommandMap != null) {
             if (!commandToUnregister.unregister(currentCommandMap)) {

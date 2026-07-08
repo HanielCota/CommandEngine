@@ -25,6 +25,13 @@ import com.hanielfialho.processor.model.CommandModel;
 
 final class AdapterFactoryRenderer {
 
+    private static final String OVERRIDE = "    @Override\n";
+    private static final String CREATE_METHOD = "    public CommandAdapter create(";
+    private static final String RETURN_NEW = "        return new ";
+    private static final String CLOSE_BRACE = "    }\n";
+    private static final String REQUIRE_NON_NULL =
+            "(Objects.requireNonNull(instance, \"instance\"), Objects.requireNonNull(executor, \"executor\"), ";
+
     private final CommandModel model;
 
     AdapterFactoryRenderer(CommandModel model) {
@@ -56,65 +63,60 @@ final class AdapterFactoryRenderer {
                 .append(" implements CommandAdapterFactory<")
                 .append(simpleClassName)
                 .append("> {\n\n");
-        code.append("    @Override\n");
+        code.append(OVERRIDE);
         code.append("    public Class<").append(simpleClassName).append("> type() {\n");
         code.append("        return ").append(model.getClassName()).append(".class;\n");
         code.append("    }\n\n");
-        code.append("    @Override\n");
-        code.append("    public CommandAdapter create(")
-                .append(simpleClassName)
-                .append(" instance, CommandExecutor executor) {\n");
-        code.append("        return new ")
+        code.append(OVERRIDE);
+        code.append(CREATE_METHOD).append(simpleClassName).append(" instance, CommandExecutor executor) {\n");
+        code.append(RETURN_NEW)
                 .append(adapterName)
                 .append(
                         "(Objects.requireNonNull(instance, \"instance\"), Objects.requireNonNull(executor, \"executor\"));\n");
-        code.append("    }\n");
+        code.append(CLOSE_BRACE);
         code.append("\n");
-        code.append("    @Override\n");
-        code.append("    public CommandAdapter create(")
+        code.append(OVERRIDE);
+        code.append(CREATE_METHOD)
                 .append(simpleClassName)
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers) {\n");
-        code.append("        return new ")
+        code.append(RETURN_NEW)
                 .append(adapterName)
-                .append(
-                        "(Objects.requireNonNull(instance, \"instance\"), Objects.requireNonNull(executor, \"executor\"), ")
+                .append(REQUIRE_NON_NULL)
                 .append("Objects.requireNonNull(argumentResolvers, \"argumentResolvers\"));\n");
-        code.append("    }\n");
+        code.append(CLOSE_BRACE);
         code.append("\n");
-        code.append("    @Override\n");
-        code.append("    public CommandAdapter create(")
+        code.append(OVERRIDE);
+        code.append(CREATE_METHOD)
                 .append(simpleClassName)
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers, ")
                 .append("CommandScheduler scheduler, CommandMessages messages, CommandTelemetry telemetry, ")
                 .append("CommandRateLimiter rateLimiter) {\n");
-        code.append("        return new ")
+        code.append(RETURN_NEW)
                 .append(adapterName)
-                .append(
-                        "(Objects.requireNonNull(instance, \"instance\"), Objects.requireNonNull(executor, \"executor\"), ")
+                .append(REQUIRE_NON_NULL)
                 .append("Objects.requireNonNull(argumentResolvers, \"argumentResolvers\"), ")
                 .append("Objects.requireNonNull(scheduler, \"scheduler\"), ")
                 .append("Objects.requireNonNull(messages, \"messages\"), ")
                 .append("Objects.requireNonNull(telemetry, \"telemetry\"), ")
                 .append("Objects.requireNonNull(rateLimiter, \"rateLimiter\"));\n");
-        code.append("    }\n");
+        code.append(CLOSE_BRACE);
         code.append("\n");
-        code.append("    @Override\n");
-        code.append("    public CommandAdapter create(")
+        code.append(OVERRIDE);
+        code.append(CREATE_METHOD)
                 .append(simpleClassName)
                 .append(" instance, CommandExecutor executor, ArgumentResolverRegistry argumentResolvers, ")
                 .append("CommandScheduler scheduler, CommandMessages messages, CommandTelemetry telemetry, ")
                 .append("CommandRateLimiter rateLimiter, SuggestionExecutor suggestionExecutor) {\n");
-        code.append("        return new ")
+        code.append(RETURN_NEW)
                 .append(adapterName)
-                .append(
-                        "(Objects.requireNonNull(instance, \"instance\"), Objects.requireNonNull(executor, \"executor\"), ")
+                .append(REQUIRE_NON_NULL)
                 .append("Objects.requireNonNull(argumentResolvers, \"argumentResolvers\"), ")
                 .append("Objects.requireNonNull(scheduler, \"scheduler\"), ")
                 .append("Objects.requireNonNull(messages, \"messages\"), ")
                 .append("Objects.requireNonNull(telemetry, \"telemetry\"), ")
                 .append("Objects.requireNonNull(rateLimiter, \"rateLimiter\"), ")
                 .append("Objects.requireNonNull(suggestionExecutor, \"suggestionExecutor\"));\n");
-        code.append("    }\n");
+        code.append(CLOSE_BRACE);
         code.append("}\n");
         return code.toString();
     }

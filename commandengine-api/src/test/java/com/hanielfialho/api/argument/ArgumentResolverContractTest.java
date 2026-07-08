@@ -40,7 +40,7 @@ final class ArgumentResolverContractTest {
             }
             try {
                 return Integer.parseInt(input.trim());
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException _) {
                 return null;
             }
         }

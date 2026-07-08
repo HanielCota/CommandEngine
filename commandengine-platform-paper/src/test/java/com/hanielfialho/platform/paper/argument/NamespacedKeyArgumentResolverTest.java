@@ -60,7 +60,7 @@ final class NamespacedKeyArgumentResolverTest {
         var resolver = new AbstractPaperArgumentResolver<NamespacedKey>(NamespacedKey.class, "namespacedKey", s -> {
             try {
                 return NamespacedKey.fromString(s);
-            } catch (Exception e) {
+            } catch (Exception _) {
                 return null;
             }
         }) {};
@@ -75,7 +75,7 @@ final class NamespacedKeyArgumentResolverTest {
         var resolver = new AbstractPaperArgumentResolver<NamespacedKey>(NamespacedKey.class, "namespacedKey", s -> {
             try {
                 return NamespacedKey.fromString(s);
-            } catch (Exception e) {
+            } catch (Exception _) {
                 return null;
             }
         }) {};

@@ -45,7 +45,9 @@ public final class IntegrationSlowSuggestionCommand {
     public List<String> names() {
         started.countDown();
         try {
-            var _ = release.await(5, TimeUnit.SECONDS); // result ignored: timeout is sufficient
+            if (!release.await(5, TimeUnit.SECONDS)) {
+                // Timed out waiting for release; proceed with default suggestion.
+            }
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
         }

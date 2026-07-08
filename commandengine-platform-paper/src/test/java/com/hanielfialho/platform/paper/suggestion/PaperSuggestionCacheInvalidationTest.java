@@ -23,6 +23,7 @@ package com.hanielfialho.platform.paper.suggestion;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.StringRange;
@@ -37,6 +38,19 @@ import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 
 final class PaperSuggestionCacheInvalidationTest {
+
+    private static final class FakeTicker implements Ticker {
+        private long nanos;
+
+        @Override
+        public long read() {
+            return nanos;
+        }
+
+        void advance(Duration duration) {
+            nanos += duration.toNanos();
+        }
+    }
 
     private static CommandContext<Object> context() {
         return new CommandContext<>(
@@ -113,15 +127,16 @@ final class PaperSuggestionCacheInvalidationTest {
     }
 
     @Test
-    void ttlExpires() throws Exception {
+    void ttlExpires() {
         var loads = new AtomicInteger();
-        var provider = new TestCachedProvider(loads, () -> true, Duration.ofMillis(30));
+        var ticker = new FakeTicker();
+        var provider = new TestCachedProvider(loads, () -> true, Duration.ofMillis(30), ticker);
         var ctx = context();
 
         provider.suggest(ctx, "");
         assertThat(loads).hasValue(1);
 
-        Thread.sleep(60);
+        ticker.advance(Duration.ofMillis(60));
 
         provider.suggest(ctx, "");
         assertThat(loads).hasValue(2);
@@ -133,6 +148,11 @@ final class PaperSuggestionCacheInvalidationTest {
 
         TestCachedProvider(AtomicInteger loads, BooleanSupplier safeToLoad, Duration ttl) {
             super(ttl, 16, safeToLoad);
+            this.loads = loads;
+        }
+
+        TestCachedProvider(AtomicInteger loads, BooleanSupplier safeToLoad, Duration ttl, Ticker ticker) {
+            super(ttl, 16, safeToLoad, ticker);
             this.loads = loads;
         }
 

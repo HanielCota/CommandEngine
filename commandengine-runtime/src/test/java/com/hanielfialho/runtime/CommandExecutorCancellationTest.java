@@ -111,13 +111,15 @@ final class CommandExecutorCancellationTest {
             assertThat(cancelled).isTrue();
 
             var resultHolder = new CommandResult[] {null};
+            var done = new CountDownLatch(1);
             future.whenComplete((result, throwable) -> {
                 if (result != null) {
                     resultHolder[0] = result;
                 }
+                done.countDown();
             });
 
-            Thread.sleep(100);
+            assertThat(done.await(1, TimeUnit.SECONDS)).isTrue();
             assertThat(future.isCancelled()).isTrue();
         }
     }
@@ -135,7 +137,9 @@ final class CommandExecutorCancellationTest {
             }
 
             @Override
-            public void sendMessage(String message) {}
+            public void sendMessage(String message) {
+                // no-op: test stub
+            }
 
             @Override
             public String getName() {

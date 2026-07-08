@@ -47,15 +47,19 @@ final class LoggingCommandTelemetryTest {
         logger.setUseParentHandlers(false);
         logger.addHandler(new Handler() {
             @Override
-            public void publish(LogRecord record) {
-                records.add(record);
+            public void publish(LogRecord entry) {
+                records.add(entry);
             }
 
             @Override
-            public void flush() {}
+            public void flush() {
+                // no-op: in-memory test handler
+            }
 
             @Override
-            public void close() {}
+            public void close() {
+                // no-op: in-memory test handler
+            }
         });
         telemetry = new LoggingCommandTelemetry(logger);
     }
@@ -65,9 +69,9 @@ final class LoggingCommandTelemetryTest {
         telemetry.recordExecution(PATH, 1_000_000L, false);
 
         assertThat(records).hasSize(1);
-        var record = records.get(0);
-        assertThat(record.getLevel()).isEqualTo(Level.FINE);
-        assertThat(record.getMessage()).contains("test cmd", "async=false", "millis=1");
+        var entry = records.get(0);
+        assertThat(entry.getLevel()).isEqualTo(Level.FINE);
+        assertThat(entry.getMessage()).contains("test cmd", "async=false", "millis=1");
     }
 
     @Test
@@ -75,9 +79,9 @@ final class LoggingCommandTelemetryTest {
         telemetry.recordExecution(PATH, 500_000L, true);
 
         assertThat(records).hasSize(1);
-        var record = records.get(0);
-        assertThat(record.getLevel()).isEqualTo(Level.FINE);
-        assertThat(record.getMessage()).contains("async=true");
+        var entry = records.get(0);
+        assertThat(entry.getLevel()).isEqualTo(Level.FINE);
+        assertThat(entry.getMessage()).contains("async=true");
     }
 
     @Test
@@ -85,9 +89,9 @@ final class LoggingCommandTelemetryTest {
         telemetry.recordFailure(PATH, "permission denied");
 
         assertThat(records).hasSize(1);
-        var record = records.get(0);
-        assertThat(record.getLevel()).isEqualTo(Level.WARNING);
-        assertThat(record.getMessage()).contains("test cmd", "reason=permission denied");
+        var entry = records.get(0);
+        assertThat(entry.getLevel()).isEqualTo(Level.WARNING);
+        assertThat(entry.getMessage()).contains("test cmd", "reason=permission denied");
     }
 
     @Test
@@ -96,10 +100,10 @@ final class LoggingCommandTelemetryTest {
         telemetry.recordFailure(PATH, "execution failed", cause);
 
         assertThat(records).hasSize(1);
-        var record = records.get(0);
-        assertThat(record.getLevel()).isEqualTo(Level.WARNING);
-        assertThat(record.getThrown()).isSameAs(cause);
-        assertThat(record.getMessage()).contains("reason=execution failed");
+        var entry = records.get(0);
+        assertThat(entry.getLevel()).isEqualTo(Level.WARNING);
+        assertThat(entry.getThrown()).isSameAs(cause);
+        assertThat(entry.getMessage()).contains("reason=execution failed");
     }
 
     @Test
@@ -107,9 +111,9 @@ final class LoggingCommandTelemetryTest {
         telemetry.recordSuggestion(PATH, 2_000_000L, 5);
 
         assertThat(records).hasSize(1);
-        var record = records.get(0);
-        assertThat(record.getLevel()).isEqualTo(Level.FINER);
-        assertThat(record.getMessage()).contains("count=5", "millis=2");
+        var entry = records.get(0);
+        assertThat(entry.getLevel()).isEqualTo(Level.FINER);
+        assertThat(entry.getMessage()).contains("count=5", "millis=2");
     }
 
     @Test

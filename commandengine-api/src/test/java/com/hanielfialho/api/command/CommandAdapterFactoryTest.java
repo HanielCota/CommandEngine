@@ -67,10 +67,14 @@ final class CommandAdapterFactoryTest {
         }
 
         @Override
-        public void register(BrigadierAdapter brigadier) {}
+        public void register(BrigadierAdapter brigadier) {
+            // no-op: test adapter
+        }
 
         @Override
-        public void unregister(BrigadierAdapter brigadier) {}
+        public void unregister(BrigadierAdapter brigadier) {
+            // no-op: test adapter
+        }
     }
 
     private static final class TestCommandAdapterFactory implements CommandAdapterFactory<TestCommand> {
