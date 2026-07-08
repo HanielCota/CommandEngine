@@ -4,6 +4,17 @@ All notable changes to CommandEngine are documented here.
 
 The project follows semantic versioning once the public API becomes stable. Alpha releases may still contain breaking API changes.
 
+## v0.1.0-alpha.8 - 2026-07-08
+
+### Changed
+
+- Optimized suggestions rendering and caching: replaced `toLowerCase(Locale.ROOT).startsWith(remaining)` with `regionMatches(true, ...)` in both generated adapters (`AdapterHelperRenderer`) and `CachedSuggestionProvider`, saving string allocations on command tab-completion.
+
+### Fixed
+
+- Fixed a silent memory leak in `DefaultCommandRegistry` where unregistered commands were not evicted from `ownerIndex` because `computeIfPresent` evaluated to `null`. Replaced with atomic `adapters.remove(name, adapter)`.
+- Fixed command map node cleaning in `PaperBrigadierBinding` by removing unregistered names from `registeredRootNodes` eagerly to avoid redundant calls during `unregisterAll`.
+
 ## v0.1.0-alpha.7 - 2026-07-08
 
 ### Added
